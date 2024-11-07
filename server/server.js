@@ -10,7 +10,8 @@ const app = express();
 
 // Allow CORS requests from your frontend (port 8081)
 app.use(cors({
-  origin: 'https://igotit-t2uz.onrender.com',
+  origin: ['https://igotit-t2uz.onrender.com', 'http://localhost:8081'],
+
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
