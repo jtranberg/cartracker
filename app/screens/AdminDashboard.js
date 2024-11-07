@@ -55,7 +55,7 @@ function AdminDashboard() {
     }
 
     try {
-      const response = await axios.post('http://10.0.0.167:5000/api/items', {
+      const response = await axios.post('https://igotit-t2uz.onrender.com/api/items', {
         itemName,
         category,
         status,
@@ -90,7 +90,7 @@ function AdminDashboard() {
     }
 
     try {
-      const response = await axios.get(`http://10.0.0.167:5000/api/items?dbKey=${fetchDbKey}&dbLock=${fetchDbLock}&isAdmin=true`);
+      const response = await axios.get(`https://igotit-t2uz.onrender.com/api/items?dbKey=${fetchDbKey}&dbLock=${fetchDbLock}&isAdmin=true`);
       setItems(response.data);
       setError('');
     } catch (error) {
@@ -106,7 +106,7 @@ function AdminDashboard() {
       const toggledByUser = selectedItem.isSelected ? null : userUsername;
 
       const response = await axios.put(
-        `http://10.0.0.167:5000/api/items/${itemId}/toggle-selected`,
+        `https://igotit-t2uz.onrender.com/api/items/${itemId}/toggle-selected`,
         {
           user: toggledByUser,
           isAdmin: true,
@@ -129,7 +129,7 @@ function AdminDashboard() {
   // Delete an item
   const deleteItem = async (itemId) => {
     try {
-      await axios.delete(`http://10.0.0.167:5000/api/items/${itemId}`);
+      await axios.delete(`https://igotit-t2uz.onrender.com/api/items/${itemId}`);
       setItems(prevItems => prevItems.filter(item => item._id !== itemId));
       alert('Item deleted successfully');
     } catch (error) {
@@ -144,7 +144,7 @@ function AdminDashboard() {
         <BlurView intensity={100} style={styles.glassContainer}>
           <Text style={styles.title}>Admin Dashboard</Text>
 
-          {/* Display User Username and Email */}
+          
           <Text style={styles.usernameText}>Logged in as: {userUsername}</Text>
           <Text style={styles.emailText}>Email: {userEmail}</Text>
 
@@ -192,11 +192,11 @@ function AdminDashboard() {
                 onChangeText={setCreateDbLock}
                 style={styles.input}
               />
-              {/* Display the user's email in the form, but keep it disabled */}
+              
               <TextInput
                 placeholder="User Email"
                 value={userEmail}
-                editable={false} // Make this field uneditable
+                editable={false} 
                 style={[styles.input, { backgroundColor: '#f0f0f0' }]} // Slightly different styling to indicate it's disabled
               />
               <Pressable onPress={handleCreateItem} style={styles.button}>

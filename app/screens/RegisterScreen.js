@@ -20,7 +20,7 @@ export default function RegisterScreen() {
 
     try {
       console.log('Sending registration data:', { username, email, password }); // Log the data being sent
-      const response = await axios.post('http://10.0.0.167:5000/register', {
+      const response = await axios.post('https://igotit-t2uz.onrender.com/register', {
         username,
         email,
         password

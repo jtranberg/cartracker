@@ -27,7 +27,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     try {
-      const response = await axios.post('http://10.0.0.167:5000/login', {
+      const response = await axios.post('https://igotit-t2uz.onrender.com/login', {
         email,
         password,
       });

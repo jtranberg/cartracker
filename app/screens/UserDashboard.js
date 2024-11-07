@@ -72,7 +72,7 @@ const UserDashboard = ({ navigation }) => {
     }
 
     try {
-      const response = await axios.get(`http://10.0.0.167:5000/api/items`, {
+      const response = await axios.get(`https://igotit-t2uz.onrender.com/api/items`, {
         params: {
           dbKey: dbKey,
           isAdmin: false,
