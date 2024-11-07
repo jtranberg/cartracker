@@ -3,7 +3,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "node igotit/server/server.js", 
+    "start": "node server/server.js", 
     "dev": "expo start", 
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
