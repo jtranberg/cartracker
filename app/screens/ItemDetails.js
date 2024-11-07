@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../services/firebase'; // Firestore setup
+
 
 export default function VehicleDetails({ route }) {
   const { vehicleId } = route.params; // Get vehicleId from route parameters

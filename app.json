@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "cartracker-app",
-    "slug": "cartracker-app",
+    "name": "IGOTIT!",
+    "slug": "igotit",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -19,18 +19,24 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.jaytranberg.igotit"
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "title": "IGOTIT! - Track Your Items"
     },
     "plugins": [
       "expo-router"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "bda6dd3b-e7d1-4856-a334-5b8ca5016c99"
+      }
     }
   }
 }
