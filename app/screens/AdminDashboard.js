@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,19 +12,20 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import styles from "../styles/AdminDashboardStyles";
-import { Linking } from "react-native";
-
 import Constants from "expo-constants";
 
-const isProduction = Constants.expoConfig?.extra?.ENV === "production";
-const apiUrl = isProduction
-  ? Constants.expoConfig?.extra?.API_URL || "https://igotit-t2uz.onrender.com"
-  : "http://localhost:5000"; // Your local backend URL
+// Dynamically determine the server URL
+const getApiUrl = () => {
+  const isDevelopment = __DEV__; // True in development mode
+  const extra = Constants.expoConfig?.extra;
+  return isDevelopment
+    ? extra?.LOCAL_API_URL
+    : extra?.PROD_API_URL || "https://igotit-t2uz.onrender.com";
+};
 
-console.log("API URL:", apiUrl);
+const apiUrl = getApiUrl();
 
-
-function AdminDashboard() {
+const AdminDashboard = () => {
   const [itemName, setItemName] = useState("");
   const [category, setCategory] = useState("");
   const [status, setStatus] = useState("");
@@ -35,204 +36,175 @@ function AdminDashboard() {
   const [fetchDbLock, setFetchDbLock] = useState("");
   const [items, setItems] = useState([]);
   const [userName, setUserName] = useState("Unknown User");
+  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [email, setEmail] = useState("");
 
+  // Fetch user details and show welcome alert on mount
   useEffect(() => {
-    const showWelcomeAlert = async () => {
+    const initialize = async () => {
       try {
         const dismissed = await AsyncStorage.getItem("welcomeAlertDismissed");
-        if (dismissed === "true") return;
-
-        Alert.alert(
-          "Welcome to Admin Dashboard",
-          "Here you can create items, toggle their selection, and manage your inventory. Use the database key and lock to access your data.",
-          [
-            {
-              text: "Got it",
-              onPress: () => console.log("Alert dismissed temporarily"),
-            },
-            {
-              text: "Put Away Forever",
-              onPress: async () => {
-                await AsyncStorage.setItem("welcomeAlertDismissed", "true");
-                console.log("Alert dismissed permanently");
+        if (dismissed !== "true") {
+          Alert.alert(
+            "Welcome to Admin Dashboard",
+            "Here you can create items, toggle their selection, and manage your inventory.",
+            [
+              { text: "Got it" },
+              {
+                text: "Put Away Forever",
+                onPress: async () => {
+                  await AsyncStorage.setItem("welcomeAlertDismissed", "true");
+                },
+                style: "destructive",
               },
-              style: "destructive",
-            },
-          ]
-        );
-      } catch (error) {
-        console.error("Error showing welcome alert:", error);
-      }
-    };
+            ]
+          );
+        }
 
-    const fetchUserDetails = async () => {
-      try {
         const storedUserName = await AsyncStorage.getItem("username");
         if (storedUserName) setUserName(storedUserName);
-      } catch (error) {
-        console.error("Failed to fetch user details from AsyncStorage:", error);
+      } catch (err) {
+        console.error("Initialization error:", err);
       }
     };
 
-    showWelcomeAlert();
-    fetchUserDetails();
+    initialize();
   }, []);
 
   const handleCreateItem = async () => {
-    // Validate all required fields
-    if (
-      !itemName.trim() ||
-      !category.trim() ||
-      !status.trim() || // Added status to validation
-      !location.trim() || // Added location to validation
-      !createDbKey.trim() ||
-      !createDbLock.trim() ||
-      !userName.trim() ||
-      !email.trim()
-    ) {
-      alert(
-        "Please fill out all required fields: Item Name, Category, Status, Location, Database Key, Database Lock, User Name, and Email."
-      );
+    if (!itemName || !category || !status || !location || !createDbKey || !createDbLock || !email || !userName) {
+      alert("Please fill in all fields.");
       return;
     }
-  
+
     const payload = {
       itemName: itemName.trim(),
       category: category.trim(),
       status: status.trim() || "Available",
-      location: location.trim() || "Unknown",
+      location: location.trim(),
       databaseKey: createDbKey.trim(),
       databaseLock: createDbLock.trim(),
-      createdBy: userName.trim(),
+      userName: userName.trim(),
       email: email.trim(),
     };
-  
-    console.log("Payload being sent to the server:", payload); // Debug payload
-  
+
     try {
       const response = await axios.post(`${apiUrl}/api/items`, payload, {
         headers: { "Content-Type": "application/json" },
       });
-  
+
       if (response.status === 201) {
         alert("Item created successfully!");
-        // Reset fields
-        setEmail("");
         setItemName("");
         setCategory("");
         setStatus("");
         setLocation("");
         setCreateDbKey("");
         setCreateDbLock("");
+        setEmail("");
         fetchItems();
-      } else {
-        console.error("Response error:", response.data);
-        alert(response.data.message || "Failed to create item. Please try again.");
       }
-    } catch (error) {
-      console.error("Error creating item:", error.response || error);
-      if (error.response) {
-        alert(error.response.data.message || "Validation error occurred.");
-      } else {
-        alert("Failed to connect to the server. Please check your network.");
-      }
+    } catch (err) {
+      console.error("Error creating item:", err);
+      alert(err.response?.data?.message || "Failed to create the item.");
     }
   };
-  
-  
-  
 
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
+    console.log("Fetching items with parameters:", { dbKey: fetchDbKey, dbLock: fetchDbLock });
+  
     if (!fetchDbKey || !fetchDbLock) {
-      alert("Please enter both database key and lock to fetch items.");
+      alert("Please provide both database key and lock.");
       return;
     }
-
+  
     try {
       const response = await axios.get(`${apiUrl}/api/items`, {
         params: { dbKey: fetchDbKey, dbLock: fetchDbLock, isAdmin: true },
       });
+  
+      console.log("Response from server:", response.data);
       setItems(response.data);
       setError("");
-    } catch (error) {
-      console.error("Error fetching items:", error);
-      setError("Failed to fetch items. Please try again.");
+    } catch (err) {
+      console.error("Error fetching items:", err);
+      setError("Failed to fetch items.");
     }
-  };
+  }, [fetchDbKey, fetchDbLock]);
+  
+
+
 
   const toggleItemSelected = async (itemId) => {
+    if (!fetchDbKey || !fetchDbLock) {
+      alert("Database key or lock is missing.");
+      return;
+    }
+
+    const payload = {
+      user: userName || "Admin",
+      isAdmin: true,
+      dbKey: fetchDbKey.trim(),
+      dbLock: fetchDbLock.trim(),
+    };
+
     try {
-      const selectedItem = items.find((item) => item._id === itemId);
-      const toggledByUser = selectedItem.isSelected ? null : userName;
-  
-      // Check if admin needs to override
-      const isAdminOverride = selectedItem.isSelected && selectedItem.toggledBy !== userName;
-  
-      const response = await axios.put(
-        `${apiUrl}/api/items/${itemId}/toggle-selected`,
-        {
-          user: toggledByUser,
-          isAdmin: true,
-          adminOverride: isAdminOverride, // Admin override flag
-          dbKey: fetchDbKey,
-          dbLock: fetchDbLock,
-        },
-        { headers: { "Content-Type": "application/json" } }
-      );
-  
-      const updatedItem = response.data;
+      const response = await axios.put(`${apiUrl}/api/items/${itemId}/toggle-selected`, payload, {
+        headers: { "Content-Type": "application/json" },
+      });
+
       setItems((prevItems) =>
-        prevItems.map((item) =>
-          item._id === updatedItem._id ? updatedItem : item
-        )
+        prevItems.map((item) => (item._id === itemId ? response.data : item))
       );
-    } catch (error) {
-      console.error("Error toggling item selected state:", error);
-      alert(
-        error.response?.data?.message || "Failed to toggle item selected state."
-      );
+    } catch (err) {
+      console.error("Error toggling item:", err);
+      alert(err.response?.data?.message || "Failed to toggle the item.");
     }
   };
-  
 
   const deleteItem = async (itemId) => {
     try {
       await axios.delete(`${apiUrl}/api/items/${itemId}`);
       setItems((prevItems) => prevItems.filter((item) => item._id !== itemId));
-      alert("Item deleted successfully");
-    } catch (error) {
-      console.error("Error deleting item:", error);
-      alert("Failed to delete item.");
+      alert("Item deleted successfully.");
+    } catch (err) {
+      console.error("Error deleting item:", err);
+      alert("Failed to delete the item.");
     }
   };
 
-  const handleEmailKey = async () => {
-    if (!fetchDbKey) {
-      alert("Please enter the database key before emailing.");
-      return;
-    }
+  const renderItem = useCallback(
+    ({ item }) => (
+      <View
+        style={[
+          styles.detailBox,
+          item.isSelected ? styles.selected : styles.unselected,
+        ]}
+      >
+        <Text>Name: {item.itemName}</Text>
+        <Text>Category: {item.category}</Text>
+        <Text>Status: {item.status}</Text>
+        <Text>Location: {item.location}</Text>
+        <Text>Selected: {item.isSelected ? "Yes" : "No"}</Text>
+        <Text>Toggled By: {item.toggledBy || "None"}</Text>
 
-    const email = "user@example.com";
-    const subject = encodeURIComponent("Your Database Access Key");
-    const body = encodeURIComponent(
-      `Here is your database key:\n\nKey: ${fetchDbKey}\n\nPlease keep this information secure.`
-    );
-
-    try {
-      const supported = await Linking.canOpenURL(`mailto:${email}?subject=${subject}&body=${body}`);
-      if (supported) {
-        await Linking.openURL(`mailto:${email}?subject=${subject}&body=${body}`);
-      } else {
-        alert("Unable to open email client.");
-      }
-    } catch (error) {
-      console.error("Error sending email:", error);
-      alert("Failed to send the email.");
-    }
-  };
+        <Pressable
+          onPress={() => toggleItemSelected(item._id)}
+          style={styles.toggleButton}
+        >
+          <Text>Toggle Selection</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => deleteItem(item._id)}
+          style={styles.deleteButton}
+        >
+          <Text>Delete</Text>
+        </Pressable>
+      </View>
+    ),
+    [items]
+  );
 
   return (
     <LinearGradient colors={["#007BFF88", "#00C6FF88"]} style={{ flex: 1 }}>
@@ -241,7 +213,10 @@ function AdminDashboard() {
           <Text style={styles.title}>Admin Dashboard</Text>
           <Text style={styles.username}>Logged in as: {userName}</Text>
 
-          <Pressable onPress={() => setShowCreateForm(!showCreateForm)} style={styles.button}>
+          <Pressable
+            onPress={() => setShowCreateForm(!showCreateForm)}
+            style={styles.button}
+          >
             <Text style={styles.buttonText}>
               {showCreateForm ? "Hide Create Item Form" : "Show Create Item Form"}
             </Text>
@@ -250,11 +225,11 @@ function AdminDashboard() {
           {showCreateForm && (
             <View>
               <TextInput
-      placeholder="Email"
-      value={email}
-      onChangeText={setEmail}
-      style={styles.input}
-    />
+                placeholder="Email"
+                value={email}
+                onChangeText={setEmail}
+                style={styles.input}
+              />
               <TextInput
                 placeholder="Item Name"
                 value={itemName}
@@ -280,34 +255,31 @@ function AdminDashboard() {
                 style={styles.input}
               />
               <TextInput
-                placeholder="Database Key for Creation"
+                placeholder="Database Key"
                 value={createDbKey}
                 onChangeText={setCreateDbKey}
                 style={styles.input}
               />
               <TextInput
-                placeholder="Database Lock for Creation"
+                placeholder="Database Lock"
                 value={createDbLock}
                 onChangeText={setCreateDbLock}
                 style={styles.input}
               />
-              
-
               <Pressable onPress={handleCreateItem} style={styles.button}>
                 <Text style={styles.buttonText}>Create Item</Text>
               </Pressable>
             </View>
           )}
 
-          <Text style={styles.title}>Enter Database Lock and Key to View Items</Text>
           <TextInput
-            placeholder="Database Key for Fetching"
+            placeholder="Database Key"
             value={fetchDbKey}
             onChangeText={setFetchDbKey}
             style={styles.input}
           />
           <TextInput
-            placeholder="Database Lock for Fetching"
+            placeholder="Database Lock"
             value={fetchDbLock}
             onChangeText={setFetchDbLock}
             style={styles.input}
@@ -318,48 +290,19 @@ function AdminDashboard() {
           </Pressable>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          <Pressable onPress={handleEmailKey} style={styles.button}>
-            <Text style={styles.buttonText}>Email Database Key</Text>
-          </Pressable>
 
           <FlatList
-            data={items}
-            keyExtractor={(item) => item._id}
-            renderItem={({ item }) => (
-              <View
-                style={[
-                  styles.detailBox,
-                  item.isSelected ? styles.selected : styles.unselected,
-                ]}
-              >
-                <Pressable
-                  onPress={() => toggleItemSelected(item._id)}
-                  style={styles.toggleItem}
-                >
-                  <Text style={styles.detailsText}>Name: {item.itemName}</Text>
-                  <Text style={styles.detailsText}>Category: {item.category}</Text>
-                  <Text style={styles.detailsText}>Status: {item.status}</Text>
-                  <Text style={styles.detailsText}>Location: {item.location}</Text>
-                  <Text style={styles.detailsText}>
-                    Selected: {item.isSelected ? "Yes" : "No"}
-                  </Text>
-                  <Text style={styles.detailsText}>
-                    Toggled By: {item.toggledBy || "Unknown"}
-                  </Text>
-                </Pressable>
+  data={items}
+  keyExtractor={(item) => item._id || item.id || Math.random().toString()}
+  renderItem={renderItem}
+  ListEmptyComponent={<Text>No items available.</Text>}
+  contentContainerStyle={styles.listContainer} // Add a style for better alignment
+/>
 
-                <View style={styles.buttonContainer}>
-                  <Pressable onPress={() => deleteItem(item._id)} style={styles.deleteButton}>
-                    <Text style={styles.deleteButtonText}>Delete Item</Text>
-                  </Pressable>
-                </View>
-              </View>
-            )}
-          />
         </BlurView>
       </View>
     </LinearGradient>
   );
-}
+};
 
 export default AdminDashboard;

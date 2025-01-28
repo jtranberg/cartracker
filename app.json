@@ -36,7 +36,8 @@
       "typedRoutes": true
     },
     "extra": {
-      "API_URL": "https://igotit-t2uz.onrender.com",
+      "LOCAL_API_URL": "http://10.0.0.167:5000", 
+      "PROD_API_URL": "https://igotit-t2uz.onrender.com",
       "eas": {
         "projectId": "bda6dd3b-e7d1-4856-a334-5b8ca5016c99"
       }

@@ -17,7 +17,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import styles from '../styles/UserDashboardStyles';
 import Constants from 'expo-constants';
 
-const apiUrl = Constants.expoConfig?.extra?.API_URL || 'http://10.0.0.167:5000';
+// Dynamically determine the server URL
+const getApiUrl = () => {
+  const isDevelopment = __DEV__; // True in development mode
+  const extra = Constants.expoConfig?.extra;
+  return isDevelopment
+    ? extra?.LOCAL_API_URL
+    : extra?.PROD_API_URL || "https://igotit-t2uz.onrender.com";
+};
+
+const apiUrl = getApiUrl();
 
 const UserDashboard = () => {
   const [dbKey, setDbKey] = useState('');
