@@ -8,12 +8,13 @@
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/images/splash.png",
+      "image": "./assets/images/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.jaytranberg.igotit"
     },
     "android": {
       "adaptiveIcon": {
@@ -28,15 +29,24 @@
       "title": "IGOTIT! - Track Your Items"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
+      "API_URL": "https://igotit-t2uz.onrender.com",
       "eas": {
         "projectId": "bda6dd3b-e7d1-4856-a334-5b8ca5016c99"
       }
+    },
+    "owner": "jaytranberg",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/bda6dd3b-e7d1-4856-a334-5b8ca5016c99"
     }
   }
 }

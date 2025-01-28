@@ -1,70 +1,76 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, FlatList, Pressable, Modal, Button, Linking, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  FlatList,
+  Pressable,
+  Modal,
+  Button,
+  Alert,
+  Linking,
+} from 'react-native';
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import styles from '../styles/UserDashboardStyles'; // Import the styles
+import styles from '../styles/UserDashboardStyles';
+import Constants from 'expo-constants';
 
-const UserDashboard = ({ navigation }) => {
+const apiUrl = Constants.expoConfig?.extra?.API_URL || 'http://10.0.0.167:5000';
+
+const UserDashboard = () => {
   const [dbKey, setDbKey] = useState('');
   const [data, setData] = useState([]);
-  const [creatorEmail, setCreatorEmail] = useState(''); // Store the creator's email
   const [error, setError] = useState('');
   const [username, setUsername] = useState('');
-  const [isModalVisible, setIsModalVisible] = useState(false); // For modal visibility
-  const [selectedItemName, setSelectedItemName] = useState(''); // Store the selected item's name
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [selectedItemName, setSelectedItemName] = useState('');
 
-  // Fetch the user data from AsyncStorage or another source
+  // Show welcome alert on mount
   useEffect(() => {
-    const fetchUsername = async () => {
+    const showWelcomeAlert = async () => {
       try {
-        const storedUsername = await AsyncStorage.getItem('username');
-        setUsername(storedUsername || 'Unknown');
-      } catch (error) {
-        console.error('Failed to fetch username:', error);
-        setUsername('Unknown');
+        const dismissed = await AsyncStorage.getItem('userDashboardAlertDismissed');
+        if (dismissed === 'true') return;
+
+        Alert.alert(
+          'Welcome to User Dashboard',
+          'Here you can view items, select available ones, and manage your choices using the database key.',
+          [
+            {
+              text: 'Got it',
+              onPress: () => console.log('Alert dismissed temporarily'),
+            },
+            {
+              text: 'Don\'t Show Again',
+              onPress: async () => {
+                await AsyncStorage.setItem('userDashboardAlertDismissed', 'true');
+                console.log('Alert dismissed permanently');
+              },
+              style: 'destructive',
+            },
+          ]
+        );
+      } catch (err) {
+        console.error('Error showing welcome alert:', err);
       }
     };
 
+    const fetchUsername = async () => {
+      try {
+        const storedUsername = await AsyncStorage.getItem('username');
+        setUsername(storedUsername || 'Unknown User');
+      } catch (err) {
+        console.error('Error fetching username from AsyncStorage:', err);
+      }
+    };
+
+    showWelcomeAlert();
     fetchUsername();
   }, []);
 
-  // Toggle item selection (isSelected)
-  const toggleItemSelectedForUser = async (itemId) => {
-    try {
-      const selectedItem = data.find(item => item._id === itemId);
-
-      // Check if the item is already selected
-      if (selectedItem.isSelected) {
-        setSelectedItemName(selectedItem.itemName); // Store the item's name to include in email
-        setCreatorEmail(selectedItem.userEmail); // Get the creator's email from the item (make sure this field exists)
-        setIsModalVisible(true); // Show modal instead of alert
-        return;
-      }
-
-      // Proceed to toggle selection if not already selected
-      const response = await axios.put(
-        `http://10.0.0.167:5000/api/items/${itemId}/toggle-selected`,
-        {
-          user: username,
-          isAdmin: false,
-          dbKey: dbKey, // dbKey as lock
-        },
-        { headers: { 'Content-Type': 'application/json' } }
-      );
-
-      const updatedItem = response.data;
-      setData(prevData =>
-        prevData.map(item => (item._id === updatedItem._id ? updatedItem : item))
-      );
-    } catch (error) {
-      console.error('Error toggling item selected state:', error);
-      alert('An error occurred. Please try again.');
-    }
-  };
-
-  // Fetch items based on dbKey and get creator email
+  // Fetch data from server
   const handleFetchData = async () => {
     if (!dbKey) {
       alert('Please enter the database key');
@@ -72,96 +78,143 @@ const UserDashboard = ({ navigation }) => {
     }
 
     try {
-      const response = await axios.get(`https://igotit-t2uz.onrender.com/api/items`, {
-        params: {
-          dbKey: dbKey,
-          isAdmin: false,
-        },
+      const response = await axios.get(`${apiUrl}/api/items`, {
+        params: { dbKey, isAdmin: false },
       });
 
-      setData(response.data); // Ensure that the data includes `userEmail` or `createdByEmail`
-      setError('');
-    } catch (error) {
-      console.error('Error fetching data:', error.response);
-      setError(error.response?.data?.message || 'Failed to fetch data. Please try again.');
+      if (response.data && Array.isArray(response.data)) {
+        setData(response.data);
+        setError('');
+      } else {
+        setError('No data found.');
+      }
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError('Failed to fetch data. Please check your server.');
     }
   };
 
-  // Open the mail app to send an email to the item's creator
+  // Toggle item selection
+  const toggleItemSelectedForUser = async (itemId) => {
+    try {
+      const selectedItem = data.find((item) => item._id === itemId);
+
+      if (selectedItem.isSelected) {
+        setSelectedItemName(selectedItem.itemName);
+        setIsModalVisible(true);
+        return;
+      }
+
+      const response = await axios.put(
+        `${apiUrl}/api/items/${itemId}/toggle-selected`,
+        {
+          user: username,
+          isAdmin: false,
+          dbKey,
+        },
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+
+      const updatedItem = response.data;
+      setData((prevData) =>
+        prevData.map((item) =>
+          item._id === updatedItem._id ? updatedItem : item
+        )
+      );
+    } catch (err) {
+      console.error('Error toggling item:', err);
+      alert('Failed to toggle item. Please try again.');
+    }
+  };
+
+  // Send email to item's creator
   const handleSendEmail = () => {
     const subject = 'Request to Unselect an Item';
     const body = `Dear User,\n\nI would like to request unselecting the item "${selectedItemName}".\n\nThank you.`;
+    const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
-    const recipient = creatorEmail || 'unknown@example.com'; // Use creator's email
-
-    const mailto = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    Linking.openURL(mailto);
+    Linking.openURL(mailto).catch((err) =>
+      console.error('Error opening email client:', err)
+    );
   };
 
   return (
     <LinearGradient colors={['#007BFF', '#00C6FF']} style={styles.background}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
-        <View style={styles.container}>
-          <BlurView intensity={80} style={styles.glassContainer}>
-            <Text style={styles.title}>User Dashboard</Text>
-            <Text style={styles.usernameText}>Logged in as: {username}</Text>
+      <View style={styles.container}>
+        <BlurView intensity={80} style={styles.glassContainer}>
+          <Text style={styles.title}>User Dashboard</Text>
+          <Text style={styles.usernameText}>Logged in as: {username}</Text>
 
-            <TextInput
-              placeholder="Enter Database Key"
-              value={dbKey}
-              onChangeText={setDbKey}
-              style={styles.input}
-            />
+          <TextInput
+            placeholder="Enter Database Key"
+            value={dbKey}
+            onChangeText={setDbKey}
+            style={styles.input}
+          />
 
-            <Pressable onPress={handleFetchData} style={styles.button}>
-              <Text style={styles.buttonText}>Fetch Data</Text>
-            </Pressable>
+          <Pressable onPress={handleFetchData} style={styles.button}>
+            <Text style={styles.buttonText}>Fetch Data</Text>
+          </Pressable>
 
-            {error ? (
-              <Text style={styles.errorText}>{error}</Text>
-            ) : (
-              <FlatList
-                data={data}
-                keyExtractor={(item) => item._id}
-                renderItem={({ item }) => (
-                  <View style={[styles.dataBox, item.isSelected ? styles.selected : null]}>
-                    <Text style={styles.dataText}>Name: {item.itemName}</Text>
-                    <Text style={styles.dataText}>Category: {item.category}</Text>
-                    <Text style={styles.dataText}>Status: {item.status}</Text>
-                    <Text style={styles.dataText}>Location: {item.location}</Text>
-                    <Text style={styles.dataText}>Selected: {item.isSelected ? 'Yes' : 'No'}</Text>
-                    <Text style={styles.dataText}>Toggled By: {item.toggledBy || 'No user'}</Text>
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-                    {/* Button to toggle item selection */}
-                    <Pressable
-                      onPress={() => toggleItemSelectedForUser(item._id)}
-                      style={styles.toggleButton}
-                    >
-                      <Text style={styles.buttonText}>
-                        {item.isSelected ? 'Already Selected' : 'Select Item'}
-                      </Text>
-                    </Pressable>
-                  </View>
-                )}
-              />
-            )}
+          <FlatList
+            data={data}
+            keyExtractor={(item) => item._id}
+            renderItem={({ item }) => (
+              <View
+                style={[
+                  styles.dataBox,
+                  item.isSelected ? styles.selected : null,
+                ]}
+              >
+                <Text style={styles.dataText}>Name: {item.itemName}</Text>
+                <Text style={styles.dataText}>Category: {item.category}</Text>
+                <Text style={styles.dataText}>Status: {item.status}</Text>
+                <Text style={styles.dataText}>Location: {item.location}</Text>
+                <Text style={styles.dataText}>
+                  Selected: {item.isSelected ? 'Yes' : 'No'}
+                </Text>
+                <Text style={styles.dataText}>
+                  Toggled By: {item.toggledBy || 'No user'}
+                </Text>
 
-            {/* Modal for sending email to the item's creator */}
-            <Modal
-              animationType="slide"
-              transparent={true}
-              visible={isModalVisible}
-              onRequestClose={() => setIsModalVisible(false)}
-            >
-              <View style={styles.modalView}>
-                <Text style={styles.modalText}>Only the creator can unselect this item.</Text>
-                <Button title="Send Email to Creator" onPress={handleSendEmail} />
-                <Button title="Cancel" onPress={() => setIsModalVisible(false)} color="red" /> 
+                <Pressable
+                  onPress={() => toggleItemSelectedForUser(item._id)}
+                  style={styles.toggleButton}
+                >
+                  <Text style={styles.buttonText}>
+                    {item.isSelected ? 'Already Selected' : 'Select Item'}
+                  </Text>
+                </Pressable>
               </View>
-            </Modal>
-          </BlurView>
-        </View>
-      </ScrollView>
+            )}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No items found</Text>
+            }
+          />
+
+          <Modal
+            animationType="slide"
+            transparent
+            visible={isModalVisible}
+            onRequestClose={() => setIsModalVisible(false)}
+          >
+            <View style={styles.modalView}>
+              <Text style={styles.modalText}>
+                Only the creator can unselect this item.
+              </Text>
+              <Button title="Send Email" onPress={handleSendEmail} />
+              <Button
+                title="Cancel"
+                onPress={() => setIsModalVisible(false)}
+                color="red"
+              />
+            </View>
+          </Modal>
+        </BlurView>
+      </View>
     </LinearGradient>
   );
 };

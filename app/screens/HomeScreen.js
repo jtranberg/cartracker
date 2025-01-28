@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ImageBackground } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient'; // Import LinearGradient
 import { BlurView } from 'expo-blur'; // Import BlurView for glass effect
@@ -37,63 +37,68 @@ export default function HomeScreen() {
     setShowAlert(false);
   };
 
-// Show the alert if showAlert is true
-useEffect(() => {
-  if (showAlert) {
-    Alert.alert(
-      'Welcome to "I GOT IT!"',
-      `This app helps you create and track your business items efficiently. 
+  // Show the alert if showAlert is true
+  useEffect(() => {
+    if (showAlert) {
+      Alert.alert(
+        'Welcome to "I GOT IT!"',
+        `This app helps you create and track your business items efficiently. 
 Use the Admin Dashboard to create your database and items. 
 Then share your Key to allow others access to your Database. 
 Use the User Dashboard to see the database. 
 Tap to select the item to be tracked. 
 Hit refresh to update the Database.`,
-      [
-        { text: "Got it!", onPress: () => handleAlertDismiss(false) },
-        {
-          text: "Don't show again",
-          onPress: () => handleAlertDismiss(true),
-          style: 'destructive',
-        },
-      ]
-    );
-  }
-}, [showAlert]);
-
+        [
+          { text: "Got it!", onPress: () => handleAlertDismiss(false) },
+          {
+            text: "Don't show again",
+            onPress: () => handleAlertDismiss(true),
+            style: 'destructive',
+          },
+        ]
+      );
+    }
+  }, [showAlert]);
 
   return (
-    <LinearGradient
-      colors={['rgba(14,110,126,1) 0%', ' rgba(8,159,190,1) 51%)']} // Blue gradient with transparency
+    <ImageBackground
+      source={require('../../assets/images/office.png')} // Path to your background image
       style={{ flex: 1 }}
+      resizeMode="cover" // Ensures the image covers the screen
     >
-      <View style={styles.container}>
-        <BlurView intensity={80} style={styles.innerContainer}>
-          <Text style={styles.title}>"I GOT IT!"</Text>
-          <Text style={styles.message}>Business Items Tracker.</Text>
-          <Text style={styles.message}>
-            Create and Track your business items.
-          </Text>
+      <LinearGradient
+        colors={['rgba(14,110,126,0.7)', 'rgba(8,159,190,0.7)']} // Blue gradient with transparency
+        style={{ flex: 1 }}
+      >
+        <View style={styles.container}>
+          <BlurView intensity={80} style={styles.innerContainer}>
+            <Text style={styles.title}>"I GOT IT!"</Text>
+            <Text style={styles.message}>Business Items Tracker.</Text>
+            <Text style={styles.message}>
+              Create and Track your business items.
+            </Text>
 
-          <TouchableOpacity 
-            style={styles.button} 
-            onPress={() => router.push('../screens/AdminDashboard')}>
-            <Text style={styles.buttonText}>Go to Admin Dashboard</Text>
-          </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.button} 
+              onPress={() => router.push('../screens/AdminDashboard')}>
+              <Text style={styles.buttonText}>Go to Admin Dashboard</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.button} 
-            onPress={() => router.push('../screens/UserDashboard')}>
-            <Text style={styles.buttonText}>Go to User Dashboard</Text>
-          </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.button} 
+              onPress={() => router.push('../screens/UserDashboard')}>
+              <Text style={styles.buttonText}>Go to User Dashboard</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.button, { backgroundColor: '#333' }]} 
-            onPress={() => router.replace('/screens/LoginScreen')}>
-            <Text style={styles.buttonText}>Log Out</Text>
-          </TouchableOpacity>
-        </BlurView>
-      </View>
-    </LinearGradient>
+            <TouchableOpacity 
+              style={[styles.button, { backgroundColor: '#333' }]} 
+              onPress={() => router.replace('/screens/LoginScreen')}>
+              <Text style={styles.buttonText}>Log Out</Text>
+            </TouchableOpacity>
+          </BlurView>
+        </View>
+      </LinearGradient>
+    </ImageBackground>
   );
 }
 
@@ -102,7 +107,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    
   },
   innerContainer: {
     padding: 20,

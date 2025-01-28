@@ -8,10 +8,14 @@ const itemsRouter = require('./api/items'); // Your item routes
 
 const app = express();
 
-// Allow CORS requests from your frontend (port 8081)
+// Use the correct CORS configuration
 app.use(cors({
-  origin: ['https://igotit-t2uz.onrender.com', 'http://localhost:8081'],
-
+  origin: [
+    'https://igotit-t2uz.onrender.com', 
+    'http://localhost:8081',
+    'http://localhost:5000',
+    'http://10.0.0.167:5000'  // Add your local machine's IP
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -25,63 +29,63 @@ app.use('/api/items', itemsRouter);
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error(err));
+  .catch(err => console.error('MongoDB connection error:', err));
 
-// Define Login Route
-app.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ success: false, message: 'Invalid credentials' });
+  app.post('/login', async (req, res) => {
+    const { email, password } = req.body;
+    console.log('Received login request:', { email, password }); // Log incoming request data
+  
+    try {
+      // Step 1: Check if user exists
+      const user = await User.findOne({ email });
+      if (!user) {
+        console.log('User not found with email:', email); // Log if user is not found
+        return res.status(400).json({ success: false, message: 'Invalid credentials' });
+      }
+  
+      console.log('User found:', user); // Log found user details (excluding password)
+  
+      // Step 2: Check if password matches
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        console.log('Password does not match for user:', email); // Log if password comparison fails
+        return res.status(400).json({ success: false, message: 'Invalid credentials' });
+      }
+  
+      console.log('Password matched successfully'); // Log successful password match
+  
+      // Step 3: Return success response
+      res.status(200).json({ success: true, message: 'Login successful', username: user.username });
+    } catch (error) {
+      console.error('Server error:', error); // Log server errors
+      res.status(500).json({ success: false, message: error.message });
     }
+  });
+  
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ success: false, message: 'Invalid credentials' });
-    }
-
-    res.status(200).json({ success: true, message: 'Login successful', username: user.username });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
+// Register Route
 app.post('/register', async (req, res) => {
   const { email, password, username } = req.body;
 
-  console.log('Received registration data:', req.body); // Log incoming request data
-
-  // Check if any fields are missing
   if (!email || !password || !username) {
-    console.log('Missing fields:', { email, password, username });
     return res.status(400).json({ success: false, message: 'All fields are required' });
   }
 
   try {
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      console.log('User already exists:', email);
       return res.status(400).json({ success: false, message: 'User already exists' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    const newUser = new User({
-      username,
-      email,
-      password: hashedPassword,
-    });
+    const newUser = new User({ username, email, password: hashedPassword });
     await newUser.save();
 
     res.status(201).json({ success: true, message: 'User registered successfully' });
   } catch (error) {
-    console.error('Error during registration:', error);  // Log the exact error
     res.status(500).json({ success: false, message: error.message });
   }
 });
-
 
 const port = process.env.PORT || 5000;
 app.listen(port, () => {

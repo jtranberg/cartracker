@@ -1,161 +1,260 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, FlatList, Pressable, Alert } from 'react-native';
-import axios from 'axios';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import styles from '../styles/AdminDashboardStyles'; // Adjust the path to your styles
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  FlatList,
+  Pressable,
+  Alert,
+} from "react-native";
+import axios from "axios";
+import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import styles from "../styles/AdminDashboardStyles";
+import { Linking } from "react-native";
+
+import Constants from "expo-constants";
+
+const isProduction = Constants.expoConfig?.extra?.ENV === "production";
+const apiUrl = isProduction
+  ? Constants.expoConfig?.extra?.API_URL || "https://igotit-t2uz.onrender.com"
+  : "http://localhost:5000"; // Your local backend URL
+
+console.log("API URL:", apiUrl);
+
 
 function AdminDashboard() {
-  const [itemName, setItemName] = useState('');
-  const [category, setCategory] = useState('');
-  const [status, setStatus] = useState('');
-  const [location, setLocation] = useState('');
-  const [createDbKey, setCreateDbKey] = useState('');
-  const [createDbLock, setCreateDbLock] = useState('');
-  const [fetchDbKey, setFetchDbKey] = useState('');
-  const [fetchDbLock, setFetchDbLock] = useState('');
+  const [itemName, setItemName] = useState("");
+  const [category, setCategory] = useState("");
+  const [status, setStatus] = useState("");
+  const [location, setLocation] = useState("");
+  const [createDbKey, setCreateDbKey] = useState("");
+  const [createDbLock, setCreateDbLock] = useState("");
+  const [fetchDbKey, setFetchDbKey] = useState("");
+  const [fetchDbLock, setFetchDbLock] = useState("");
   const [items, setItems] = useState([]);
-  const [userUsername, setUserUsername] = useState('Unknown User'); // Store user username
-  const [userEmail, setUserEmail] = useState('Unknown Email'); // Store user email
-  const [error, setError] = useState('');
+  const [userName, setUserName] = useState("Unknown User");
+  const [error, setError] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [email, setEmail] = useState("");
 
-  // Fetch the user username and email from AsyncStorage
   useEffect(() => {
-    const fetchUserDetails = async () => {
+    const showWelcomeAlert = async () => {
       try {
-        const storedUsername = await AsyncStorage.getItem('username');
-        const storedEmail = await AsyncStorage.getItem('userEmail');
-        
-        if (storedUsername) {
-          setUserUsername(storedUsername);  // Set the username if found
-        } else {
-          console.warn('Username not found in AsyncStorage');
-        }
+        const dismissed = await AsyncStorage.getItem("welcomeAlertDismissed");
+        if (dismissed === "true") return;
 
-        if (storedEmail) {
-          setUserEmail(storedEmail);  // Set the email if found
-        } else {
-          console.warn('Email not found in AsyncStorage');
-        }
+        Alert.alert(
+          "Welcome to Admin Dashboard",
+          "Here you can create items, toggle their selection, and manage your inventory. Use the database key and lock to access your data.",
+          [
+            {
+              text: "Got it",
+              onPress: () => console.log("Alert dismissed temporarily"),
+            },
+            {
+              text: "Put Away Forever",
+              onPress: async () => {
+                await AsyncStorage.setItem("welcomeAlertDismissed", "true");
+                console.log("Alert dismissed permanently");
+              },
+              style: "destructive",
+            },
+          ]
+        );
       } catch (error) {
-        console.error('Failed to fetch user details from AsyncStorage:', error);
+        console.error("Error showing welcome alert:", error);
       }
     };
 
-    fetchUserDetails(); // Fetch user details on component mount
+    const fetchUserDetails = async () => {
+      try {
+        const storedUserName = await AsyncStorage.getItem("username");
+        if (storedUserName) setUserName(storedUserName);
+      } catch (error) {
+        console.error("Failed to fetch user details from AsyncStorage:", error);
+      }
+    };
+
+    showWelcomeAlert();
+    fetchUserDetails();
   }, []);
 
-  // Create a new item
   const handleCreateItem = async () => {
-    if (!itemName || !category || !createDbKey || !createDbLock) {
-      alert('Please enter all required fields including database key and lock.');
+    // Validate all required fields
+    if (
+      !itemName.trim() ||
+      !category.trim() ||
+      !status.trim() || // Added status to validation
+      !location.trim() || // Added location to validation
+      !createDbKey.trim() ||
+      !createDbLock.trim() ||
+      !userName.trim() ||
+      !email.trim()
+    ) {
+      alert(
+        "Please fill out all required fields: Item Name, Category, Status, Location, Database Key, Database Lock, User Name, and Email."
+      );
       return;
     }
-
+  
+    const payload = {
+      itemName: itemName.trim(),
+      category: category.trim(),
+      status: status.trim() || "Available",
+      location: location.trim() || "Unknown",
+      databaseKey: createDbKey.trim(),
+      databaseLock: createDbLock.trim(),
+      createdBy: userName.trim(),
+      email: email.trim(),
+    };
+  
+    console.log("Payload being sent to the server:", payload); // Debug payload
+  
     try {
-      const response = await axios.post('https://igotit-t2uz.onrender.com/api/items', {
-        itemName,
-        category,
-        status,
-        location,
-        databaseKey: createDbKey,
-        databaseLock: createDbLock,
-        createdBy: userUsername, // Include the user username in the item creation
-        userEmail: userEmail // Attach the user email to the item
-      }, {
-        headers: { 'Content-Type': 'application/json' },
+      const response = await axios.post(`${apiUrl}/api/items`, payload, {
+        headers: { "Content-Type": "application/json" },
       });
-
-      alert('Item created successfully');
-      setItemName('');
-      setCategory('');
-      setStatus('');
-      setLocation('');
-      setCreateDbKey('');
-      setCreateDbLock('');
-      fetchItems(); // Fetch the newly created items
+  
+      if (response.status === 201) {
+        alert("Item created successfully!");
+        // Reset fields
+        setEmail("");
+        setItemName("");
+        setCategory("");
+        setStatus("");
+        setLocation("");
+        setCreateDbKey("");
+        setCreateDbLock("");
+        fetchItems();
+      } else {
+        console.error("Response error:", response.data);
+        alert(response.data.message || "Failed to create item. Please try again.");
+      }
     } catch (error) {
-      console.error('Error creating item:', error);
-      alert('Failed to create item');
+      console.error("Error creating item:", error.response || error);
+      if (error.response) {
+        alert(error.response.data.message || "Validation error occurred.");
+      } else {
+        alert("Failed to connect to the server. Please check your network.");
+      }
     }
   };
+  
+  
+  
 
-  // Fetch items based on dbKey and dbLock
   const fetchItems = async () => {
     if (!fetchDbKey || !fetchDbLock) {
-      alert('Please enter both database key and lock to fetch items.');
+      alert("Please enter both database key and lock to fetch items.");
       return;
     }
 
     try {
-      const response = await axios.get(`https://igotit-t2uz.onrender.com/api/items?dbKey=${fetchDbKey}&dbLock=${fetchDbLock}&isAdmin=true`);
+      const response = await axios.get(`${apiUrl}/api/items`, {
+        params: { dbKey: fetchDbKey, dbLock: fetchDbLock, isAdmin: true },
+      });
       setItems(response.data);
-      setError('');
+      setError("");
     } catch (error) {
-      setError('Failed to fetch items');
-      console.error('Error fetching items:', error);
+      console.error("Error fetching items:", error);
+      setError("Failed to fetch items. Please try again.");
     }
   };
 
-  // Toggle item selected/unselected
   const toggleItemSelected = async (itemId) => {
     try {
-      const selectedItem = items.find(item => item._id === itemId);
-      const toggledByUser = selectedItem.isSelected ? null : userUsername;
-
+      const selectedItem = items.find((item) => item._id === itemId);
+      const toggledByUser = selectedItem.isSelected ? null : userName;
+  
+      // Check if admin needs to override
+      const isAdminOverride = selectedItem.isSelected && selectedItem.toggledBy !== userName;
+  
       const response = await axios.put(
-        `https://igotit-t2uz.onrender.com/api/items/${itemId}/toggle-selected`,
+        `${apiUrl}/api/items/${itemId}/toggle-selected`,
         {
           user: toggledByUser,
           isAdmin: true,
+          adminOverride: isAdminOverride, // Admin override flag
           dbKey: fetchDbKey,
-          dbLock: fetchDbLock
+          dbLock: fetchDbLock,
         },
-        { headers: { 'Content-Type': 'application/json' } }
+        { headers: { "Content-Type": "application/json" } }
       );
-
+  
       const updatedItem = response.data;
-      setItems(prevItems =>
-        prevItems.map(item => (item._id === updatedItem._id ? updatedItem : item))
+      setItems((prevItems) =>
+        prevItems.map((item) =>
+          item._id === updatedItem._id ? updatedItem : item
+        )
       );
     } catch (error) {
-      console.error('Error toggling item selected state:', error);
-      alert('Failed to toggle item selected state.');
+      console.error("Error toggling item selected state:", error);
+      alert(
+        error.response?.data?.message || "Failed to toggle item selected state."
+      );
+    }
+  };
+  
+
+  const deleteItem = async (itemId) => {
+    try {
+      await axios.delete(`${apiUrl}/api/items/${itemId}`);
+      setItems((prevItems) => prevItems.filter((item) => item._id !== itemId));
+      alert("Item deleted successfully");
+    } catch (error) {
+      console.error("Error deleting item:", error);
+      alert("Failed to delete item.");
     }
   };
 
-  // Delete an item
-  const deleteItem = async (itemId) => {
+  const handleEmailKey = async () => {
+    if (!fetchDbKey) {
+      alert("Please enter the database key before emailing.");
+      return;
+    }
+
+    const email = "user@example.com";
+    const subject = encodeURIComponent("Your Database Access Key");
+    const body = encodeURIComponent(
+      `Here is your database key:\n\nKey: ${fetchDbKey}\n\nPlease keep this information secure.`
+    );
+
     try {
-      await axios.delete(`https://igotit-t2uz.onrender.com/api/items/${itemId}`);
-      setItems(prevItems => prevItems.filter(item => item._id !== itemId));
-      alert('Item deleted successfully');
+      const supported = await Linking.canOpenURL(`mailto:${email}?subject=${subject}&body=${body}`);
+      if (supported) {
+        await Linking.openURL(`mailto:${email}?subject=${subject}&body=${body}`);
+      } else {
+        alert("Unable to open email client.");
+      }
     } catch (error) {
-      console.error('Error deleting item:', error);
-      alert('Failed to delete item.');
+      console.error("Error sending email:", error);
+      alert("Failed to send the email.");
     }
   };
 
   return (
-    <LinearGradient colors={['#007BFF88', '#00C6FF88']} style={{ flex: 1 }}>
+    <LinearGradient colors={["#007BFF88", "#00C6FF88"]} style={{ flex: 1 }}>
       <View style={styles.container}>
         <BlurView intensity={100} style={styles.glassContainer}>
           <Text style={styles.title}>Admin Dashboard</Text>
-
-          
-          <Text style={styles.usernameText}>Logged in as: {userUsername}</Text>
-          <Text style={styles.emailText}>Email: {userEmail}</Text>
+          <Text style={styles.username}>Logged in as: {userName}</Text>
 
           <Pressable onPress={() => setShowCreateForm(!showCreateForm)} style={styles.button}>
             <Text style={styles.buttonText}>
-              {showCreateForm ? 'Hide Create Item Form' : 'Show Create Item Form'}
+              {showCreateForm ? "Hide Create Item Form" : "Show Create Item Form"}
             </Text>
           </Pressable>
 
           {showCreateForm && (
             <View>
+              <TextInput
+      placeholder="Email"
+      value={email}
+      onChangeText={setEmail}
+      style={styles.input}
+    />
               <TextInput
                 placeholder="Item Name"
                 value={itemName}
@@ -193,12 +292,7 @@ function AdminDashboard() {
                 style={styles.input}
               />
               
-              <TextInput
-                placeholder="User Email"
-                value={userEmail}
-                editable={false} 
-                style={[styles.input, { backgroundColor: '#f0f0f0' }]} // Slightly different styling to indicate it's disabled
-              />
+
               <Pressable onPress={handleCreateItem} style={styles.button}>
                 <Text style={styles.buttonText}>Create Item</Text>
               </Pressable>
@@ -224,6 +318,9 @@ function AdminDashboard() {
           </Pressable>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          <Pressable onPress={handleEmailKey} style={styles.button}>
+            <Text style={styles.buttonText}>Email Database Key</Text>
+          </Pressable>
 
           <FlatList
             data={items}
@@ -233,16 +330,22 @@ function AdminDashboard() {
                 style={[
                   styles.detailBox,
                   item.isSelected ? styles.selected : styles.unselected,
-                  item.isAdminSelected ? styles.adminSelected : null
                 ]}
               >
-                <Pressable onPress={() => toggleItemSelected(item._id)} style={styles.toggleItem}>
+                <Pressable
+                  onPress={() => toggleItemSelected(item._id)}
+                  style={styles.toggleItem}
+                >
                   <Text style={styles.detailsText}>Name: {item.itemName}</Text>
                   <Text style={styles.detailsText}>Category: {item.category}</Text>
                   <Text style={styles.detailsText}>Status: {item.status}</Text>
                   <Text style={styles.detailsText}>Location: {item.location}</Text>
-                  <Text style={styles.detailsText}>Selected: {item.isSelected ? 'Yes' : 'No'}</Text>
-                  <Text style={styles.detailsText}>Toggled By: {item.toggledBy || 'Unknown'}</Text>
+                  <Text style={styles.detailsText}>
+                    Selected: {item.isSelected ? "Yes" : "No"}
+                  </Text>
+                  <Text style={styles.detailsText}>
+                    Toggled By: {item.toggledBy || "Unknown"}
+                  </Text>
                 </Pressable>
 
                 <View style={styles.buttonContainer}>

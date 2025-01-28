@@ -1,180 +1,157 @@
-import React, { useState, useEffect } from 'react';
-import { View, TextInput, StyleSheet, Text, Pressable, Platform, ImageBackground } from 'react-native';
-import axios from 'axios';
-import { useRouter, useNavigation } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LinearGradient } from 'expo-linear-gradient'; // For gradient background
-import { BlurView } from 'expo-blur'; // For glassmorphism effect
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ImageBackground, Dimensions } from 'react-native';
+import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient'; // Import LinearGradient
+import { BlurView } from 'expo-blur'; // Import BlurView for glass effect
+import AsyncStorage from '@react-native-async-storage/async-storage'; // For storing user choice
 
-export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-  const router = useRouter();
-  const navigation = useNavigation();
+export default function HomeScreen() {
+  const router = useRouter(); // Initialize useRouter inside the component
+  const [showAlert, setShowAlert] = useState(false);
 
-  // Hide bottom navigation when on the LoginScreen
+  // Check if the alert should be shown
   useEffect(() => {
-    if (Platform.OS !== 'web') {
-      navigation.setOptions({ tabBarVisible: false });
-    }
-
-    return () => {
-      // Reset visibility when leaving the screen
-      navigation.setOptions({ tabBarVisible: true });
+    const checkAlertStatus = async () => {
+      try {
+        const value = await AsyncStorage.getItem('hideAlert');
+        if (value === null) {
+          // If 'hideAlert' is not set, show the alert
+          setShowAlert(true);
+        }
+      } catch (error) {
+        console.error('Error checking alert status:', error);
+      }
     };
-  }, [navigation]);
 
-  const handleLogin = async () => {
-    try {
-      const response = await axios.post('https://igotit-t2uz.onrender.com/login', {
-        email,
-        password,
-      });
-  
-      if (response.data.success) {
-        // Store both username and email in AsyncStorage
-        await AsyncStorage.setItem('username', response.data.username);
-        await AsyncStorage.setItem('userEmail', email); // Save the email as well
-  
-        router.replace('/screens/HomeScreen');
-      } else {
-        setErrorMessage(response.data.message || 'Login failed');
-      }
-    } catch (error) {
-      if (error.response) {
-        setErrorMessage(error.response.data.message || 'An error occurred');
-      } else if (error.request) {
-        setErrorMessage('No response from server. Check your network.');
-      } else {
-        setErrorMessage('Error: ' + error.message);
+    checkAlertStatus();
+  }, []);
+
+  const handleAlertDismiss = async (hide) => {
+    if (hide) {
+      try {
+        await AsyncStorage.setItem('hideAlert', 'true');
+      } catch (error) {
+        console.error('Error saving alert status:', error);
       }
     }
+    setShowAlert(false);
   };
-  
+
+  // Show the alert if showAlert is true
+  useEffect(() => {
+    if (showAlert) {
+      Alert.alert(
+        'Welcome to "I GOT IT!"',
+        `This app helps you create and track your business items efficiently. 
+Use the Admin Dashboard to create your database and items. 
+Then share your Key to allow others access to your Database. 
+Use the User Dashboard to see the database. 
+Tap to select the item to be tracked. 
+Hit refresh to update the Database.`,
+        [
+          { text: "Got it!", onPress: () => handleAlertDismiss(false) },
+          {
+            text: "Don't show again",
+            onPress: () => handleAlertDismiss(true),
+            style: 'destructive',
+          },
+        ]
+      );
+    }
+  }, [showAlert]);
 
   return (
-    // <ImageBackground
-    //   source={require('../../assets/images/businessit.png')} // Ensure correct path to the image
-    //   style={styles.backgroundImage}
-    //   resizeMode="cover" // Ensures the image covers the entire background
-    // >
-      <View style={styles.overlayWrapper}>
-        <LinearGradient
-          colors={['rgba(0, 123, 255, 0.2)', 'rgba(0, 198, 255, 0.2)']} // More transparent gradient overlay
-          style={styles.gradientOverlay}
-        >
-          <View style={styles.container}>
-            <BlurView intensity={50} style={styles.glassContainer}>
-              <Text style={styles.title}>I Got It!</Text>
-              <Text style={styles.title}>Know where your items are.</Text>
-              
-              
+    <ImageBackground
+      source={require('../../assets/images/office.png')} // Path to your background image
+      style={styles.background}
+      resizeMode="cover" // Ensures the image scales proportionally
+    >
+      <LinearGradient
+        colors={['rgba(14,110,126,0.7)', 'rgba(8,159,190,0.7)']} // Blue gradient with transparency
+        style={styles.background}
+      >
+        <View style={styles.container}>
+          <BlurView intensity={80} style={styles.innerContainer}>
+            <Text style={styles.title}>"I GOT IT!"</Text>
+            <Text style={styles.message}>Business Items Tracker.</Text>
+            <Text style={styles.message}>
+              Create and Track your business items.
+            </Text>
 
-              {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
+            <TouchableOpacity 
+              style={styles.button} 
+              onPress={() => router.push('../screens/AdminDashboard')}>
+              <Text style={styles.buttonText}>Go to Admin Dashboard</Text>
+            </TouchableOpacity>
 
-              <TextInput
-                placeholder="Email"
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-              <TextInput
-                placeholder="Password"
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
+            <TouchableOpacity 
+              style={styles.button} 
+              onPress={() => router.push('../screens/UserDashboard')}>
+              <Text style={styles.buttonText}>Go to User Dashboard</Text>
+            </TouchableOpacity>
 
-              <Pressable style={styles.button} onPress={handleLogin}>
-                <Text style={styles.buttonText}>Login</Text>
-              </Pressable>
-
-              <Pressable onPress={() => router.push('/screens/RegisterScreen')} style={styles.registerButton}>
-                <Text style={styles.registerText}>Don't have an account? Register</Text>
-              </Pressable>
-            </BlurView>
-          </View>
-        </LinearGradient>
-      </View>
-    // </ImageBackground>
+            <TouchableOpacity 
+              style={[styles.button, { backgroundColor: '#333' }]} 
+              onPress={() => router.replace('/screens/LoginScreen')}>
+              <Text style={styles.buttonText}>Log Out</Text>
+            </TouchableOpacity>
+          </BlurView>
+        </View>
+      </LinearGradient>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  backgroundImage: {
+  background: {
     flex: 1,
-    justifyContent: 'center',
-    width: '100%',
-    height: '100%',
-  },
-  overlayWrapper: {
-    flex: 1,
-  },
-  gradientOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.)', // Additional transparent background
+    width: '100%', // Ensures the background image scales to full width
+    height: '100%', // Ensures the background image scales to full height
   },
   container: {
+    marginTop:"10%",
+    maxWidth:"80%",
+    maxHeight:"80%",
+    margin:"auto",
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
-  glassContainer: {
-    width: '100%',
-    maxWidth: 350,
+  innerContainer: {
     padding: 20,
     borderRadius: 20,
-    backgroundColor: 'rgba(192, 249, 250, 0.7)', // Adjust transparency for more glass-like appearance
-    borderColor: 'rgba(255, 255, 255, 0.7)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)', // Transparent background for glassmorphism
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     borderWidth: 1,
-    overflow: 'hidden',
+    width: '90%',
+    maxWidth: 400,
+    alignItems: 'center',
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 20,
-    color: '#333',
+    color: '#fff', // White text for the title
   },
-  input: {
-    borderWidth: 1,
+  message: {
     fontSize: 18,
-    borderColor: 'rgba(255, 255, 255, 1)',
-    padding: 15,
-    marginBottom: 15,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)', // Slightly more transparent input background
-    color: '#333',
-  },
-  error: {
-    color: 'red',
+    marginBottom: 20,
     textAlign: 'center',
-    marginBottom: 10,
+    color: '#fff', // White text for the messages
   },
   button: {
-    backgroundColor: '#333',
+    backgroundColor: '#1E90FF',
     padding: 15,
+    marginVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
-    marginTop: 10,
+    width: '100%',
   },
   buttonText: {
     color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
     fontWeight: 'bold',
-  },
-  registerButton: {
-    marginTop: 20,
-    alignItems: 'center',
-  },
-  registerText: {
-    color: '#333',
-    textDecorationLine: 'underline',
-    fontSize: 18,
   },
 });

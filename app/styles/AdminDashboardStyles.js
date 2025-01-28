@@ -21,17 +21,18 @@ const styles = StyleSheet.create({
     fontSize: 28,
     marginBottom: 15,
     textAlign: 'center',
-    color: '#fff',
+    color: '#333',
     fontWeight: '600',
   },
   input: {
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.5)', // Semi-transparent border for glass effect
     padding: 12,
+    fontSize:20,    
     marginBottom: 10,
     borderRadius: 6,
     backgroundColor: 'rgba(255, 255, 255, 0.3)', // Semi-transparent background for inputs
-    color: '#fff',
+    color: '#333',
   },
   button: {
     padding: 12,
@@ -111,7 +112,15 @@ const styles = StyleSheet.create({
   },
    adminSelected: {
     backgroundColor: 'FFD700',
-  }
+  },
+  username: {
+    color: '#333',
+    fontSize: 20,
+    textAlign: 'center', // Center text horizontally
+    alignSelf: 'center', // Center the element itself
+    marginVertical: 10,  // Add some spacing above and below (optional)
+  },
+  
   
   
 });
