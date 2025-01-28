@@ -1,3 +1,8 @@
+const express = require('express');
+const router = express.Router(); // Initialize the router
+const Post = require('../models/Post'); // Import your model
+
+
 router.post('/', async (req, res) => {
   const { itemName, category, status, location, databaseKey, databaseLock, userName, email } = req.body;
 
@@ -52,3 +57,4 @@ router.post('/', async (req, res) => {
   }
 });
 
+module.exports = router;
