@@ -17,10 +17,10 @@ import Constants from "expo-constants";
 // Dynamically determine the server URL
 const getApiUrl = () => {
   const isDevelopment = __DEV__; // True in development mode
-  const extra = Constants.expoConfig?.extra;
+  const extra = Constants.expoConfig?.extra || {};
   return isDevelopment
-    ? extra?.LOCAL_API_URL
-    : extra?.PROD_API_URL || "https://igotit-t2uz.onrender.com";
+    ? extra.LOCAL_API_URL || "http://localhost:5000" // Fallback for local development
+    : extra.PROD_API_URL || "https://igotit-t2uz.onrender.com"; // Fallback for production
 };
 
 const apiUrl = getApiUrl();
@@ -113,7 +113,8 @@ const AdminDashboard = () => {
 
   const fetchItems = useCallback(async () => {
     console.log("Fetching items with parameters:", { dbKey: fetchDbKey, dbLock: fetchDbLock });
-  
+    console.log(`Fetching items from: ${apiUrl}/api/items`);
+
     if (!fetchDbKey || !fetchDbLock) {
       alert("Please provide both database key and lock.");
       return;
@@ -133,8 +134,6 @@ const AdminDashboard = () => {
     }
   }, [fetchDbKey, fetchDbLock]);
   
-
-
 
   const toggleItemSelected = async (itemId) => {
     if (!fetchDbKey || !fetchDbLock) {
@@ -292,13 +291,12 @@ const AdminDashboard = () => {
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
           <FlatList
-  data={items}
-  keyExtractor={(item) => item._id || item.id || Math.random().toString()}
-  renderItem={renderItem}
-  ListEmptyComponent={<Text>No items available.</Text>}
-  contentContainerStyle={styles.listContainer} // Add a style for better alignment
-/>
-
+            data={items}
+            keyExtractor={(item) => item._id || item.id || Math.random().toString()}
+            renderItem={renderItem}
+            ListEmptyComponent={<Text>No items available.</Text>}
+            contentContainerStyle={styles.listContainer}
+          />
         </BlurView>
       </View>
     </LinearGradient>

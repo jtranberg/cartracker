@@ -17,13 +17,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import styles from '../styles/UserDashboardStyles';
 import Constants from 'expo-constants';
 
+
 // Dynamically determine the server URL
 const getApiUrl = () => {
   const isDevelopment = __DEV__; // True in development mode
-  const extra = Constants.expoConfig?.extra;
+  const extra = Constants.expoConfig?.extra || {};
   return isDevelopment
-    ? extra?.LOCAL_API_URL
-    : extra?.PROD_API_URL || "https://igotit-t2uz.onrender.com";
+    ? extra.LOCAL_API_URL || "http://localhost:5000" // Fallback for local development
+    : extra.PROD_API_URL || "https://igotit-t2uz.onrender.com"; // Fallback for production
 };
 
 const apiUrl = getApiUrl();
