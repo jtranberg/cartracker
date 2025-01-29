@@ -12,11 +12,11 @@ router.post('/', async (req, res) => {
   const missingFields = [];
   if (!itemName) missingFields.push('itemName');
   if (!category) missingFields.push('category');
-  if (!status) missingFields.push('status'); // Include status in validation
-  if (!location) missingFields.push('location'); // Include location in validation
+  if (!status) missingFields.push('status');
+  if (!location) missingFields.push('location');
   if (!databaseKey) missingFields.push('databaseKey');
   if (!databaseLock) missingFields.push('databaseLock');
-  if (!userName) missingFields.push('userName'); // Match frontend naming
+  if (!userName) missingFields.push('userName');
   if (!email) missingFields.push('email');
 
   if (missingFields.length > 0) {
@@ -35,7 +35,7 @@ router.post('/', async (req, res) => {
       location: location || 'Unknown',
       databaseKey,
       databaseLock,
-      createdBy: userName, // Map userName to createdBy in the model
+      createdBy: userName,
       email,
       isSelected: false,
       toggledBy: '',
@@ -60,7 +60,6 @@ router.post('/', async (req, res) => {
     res.status(500).json({ message: 'Failed to create item', error });
   }
 });
-
 
 // GET route for fetching items
 router.get('/', async (req, res) => {
@@ -97,67 +96,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-
-
-const toggleItemSelected = async (itemId) => {
-  try {
-    const selectedItem = items.find((item) => item._id === itemId);
-
-    if (!fetchDbKey || !fetchDbLock) {
-      alert("Database key or lock is missing.");
-      return;
-    }
-
-    const payload = {
-      user: userName || 'Admin', // Use 'Admin' if userName is missing
-      isAdmin: true, // Admin flag
-      dbKey: fetchDbKey.trim(),
-      dbLock: fetchDbLock.trim(),
-    };
-
-    console.log("Payload sent to toggle-selected API:", payload);
-
-    const response = await axios.put(`${apiUrl}/api/items/${itemId}/toggle-selected`, payload, {
-      headers: { "Content-Type": "application/json" },
-    });
-
-    console.log("Response from toggle-selected API:", response.data);
-
-    setItems((prevItems) =>
-      prevItems.map((item) =>
-        item._id === itemId ? response.data : item
-      )
-    );
-
-    console.log("Updated items after toggle:", items);
-  } catch (err) {
-    console.error("Error toggling item:", err.response?.data || err);
-    alert(err.response?.data?.message || "Failed to toggle the item.");
-  }
-};
-
-
-
-
-
-
-// DELETE route for deleting an item
-router.delete('/:id', async (req, res) => {
-  const itemId = req.params.id;
-
-  try {
-    const item = await Post.findById(itemId);
-    if (!item) {
-      return res.status(404).json({ message: 'Item not found' });
-    }
-
-    await item.deleteOne();
-    res.status(200).json({ message: 'Item deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting item:', error);
-    res.status(500).json({ message: 'Failed to delete item' });
-  }
-});
 // PUT route for toggling item selection
 router.put('/:id/toggle-selected', async (req, res) => {
   const itemId = req.params.id;
@@ -208,5 +146,23 @@ router.put('/:id/toggle-selected', async (req, res) => {
   }
 });
 
+// DELETE route for deleting an item
+router.delete('/:id', async (req, res) => {
+  const itemId = req.params.id;
+
+  try {
+    const item = await Post.findById(itemId);
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+
+    await item.deleteOne();
+    console.log("Item deleted successfully:", item);
+    res.status(200).json({ message: 'Item deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting item:', error);
+    res.status(500).json({ message: 'Failed to delete item' });
+  }
+});
 
 module.exports = router;
