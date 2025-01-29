@@ -3,9 +3,12 @@ import {
   View,
   Text,
   TextInput,
-  FlatList,
   Pressable,
   Alert,
+  FlatList,
+  Dimensions,
+  Linking,
+  ScrollView,
 } from "react-native";
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
@@ -14,13 +17,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import styles from "../styles/AdminDashboardStyles";
 import Constants from "expo-constants";
 
+const { width } = Dimensions.get("window");
+
 // Dynamically determine the server URL
 const getApiUrl = () => {
-  const isDevelopment = __DEV__; // True in development mode
+  const isDevelopment = __DEV__;
   const extra = Constants.expoConfig?.extra || {};
   return isDevelopment
-    ? extra.LOCAL_API_URL || "http://localhost:5000" // Fallback for local development
-    : extra.PROD_API_URL || "https://igotit-t2uz.onrender.com"; // Fallback for production
+    ? extra.LOCAL_API_URL || "http://localhost:5000"
+    : extra.PROD_API_URL || "https://igotit-t2uz.onrender.com";
 };
 
 const apiUrl = getApiUrl();
@@ -40,7 +45,6 @@ const AdminDashboard = () => {
   const [error, setError] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
 
-  // Fetch user details and show welcome alert on mount
   useEffect(() => {
     const initialize = async () => {
       try {
@@ -72,60 +76,17 @@ const AdminDashboard = () => {
     initialize();
   }, []);
 
-  const handleCreateItem = async () => {
-    if (!itemName || !category || !status || !location || !createDbKey || !createDbLock || !email || !userName) {
-      alert("Please fill in all fields.");
-      return;
-    }
-
-    const payload = {
-      itemName: itemName.trim(),
-      category: category.trim(),
-      status: status.trim() || "Available",
-      location: location.trim(),
-      databaseKey: createDbKey.trim(),
-      databaseLock: createDbLock.trim(),
-      userName: userName.trim(),
-      email: email.trim(),
-    };
-
-    try {
-      const response = await axios.post(`${apiUrl}/api/items`, payload, {
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (response.status === 201) {
-        alert("Item created successfully!");
-        setItemName("");
-        setCategory("");
-        setStatus("");
-        setLocation("");
-        setCreateDbKey("");
-        setCreateDbLock("");
-        setEmail("");
-        fetchItems();
-      }
-    } catch (err) {
-      console.error("Error creating item:", err);
-      alert(err.response?.data?.message || "Failed to create the item.");
-    }
-  };
-
   const fetchItems = useCallback(async () => {
-    console.log("Fetching items with parameters:", { dbKey: fetchDbKey, dbLock: fetchDbLock });
-    console.log(`Fetching items from: ${apiUrl}/api/items`);
-
     if (!fetchDbKey || !fetchDbLock) {
       alert("Please provide both database key and lock.");
       return;
     }
-  
+
     try {
       const response = await axios.get(`${apiUrl}/api/items`, {
         params: { dbKey: fetchDbKey, dbLock: fetchDbLock, isAdmin: true },
       });
-  
-      console.log("Response from server:", response.data);
+
       setItems(response.data);
       setError("");
     } catch (err) {
@@ -133,7 +94,6 @@ const AdminDashboard = () => {
       setError("Failed to fetch items.");
     }
   }, [fetchDbKey, fetchDbLock]);
-  
 
   const toggleItemSelected = async (itemId) => {
     if (!fetchDbKey || !fetchDbLock) {
@@ -173,32 +133,44 @@ const AdminDashboard = () => {
     }
   };
 
+  // ✅ Share database key via email
+  const shareDbKey = () => {
+    if (!fetchDbKey) {
+      alert("Database key is missing.");
+      return;
+    }
+
+    const subject = "Database Key for Access";
+    const body = `Hello,\n\nHere is the database key you need to access the items:\n\nKey: ${fetchDbKey}\n\nBest Regards,`;
+    const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+    Linking.openURL(mailto).catch((err) =>
+      console.error("Error opening email client:", err)
+    );
+  };
+
   const renderItem = useCallback(
     ({ item }) => (
-      <View
-        style={[
-          styles.detailBox,
-          item.isSelected ? styles.selected : styles.unselected,
-        ]}
-      >
-        <Text>Name: {item.itemName}</Text>
-        <Text>Category: {item.category}</Text>
-        <Text>Status: {item.status}</Text>
-        <Text>Location: {item.location}</Text>
-        <Text>Selected: {item.isSelected ? "Yes" : "No"}</Text>
-        <Text>Toggled By: {item.toggledBy || "None"}</Text>
+      <View style={[styles.cardContainer, item.isSelected ? styles.selected : null]}>
+        <Text style={styles.cardTitle}>{item.itemName}</Text>
+        <Text style={styles.cardText}>Category: {item.category}</Text>
+        <Text style={styles.cardText}>Status: {item.status}</Text>
+        <Text style={styles.cardText}>Location: {item.location}</Text>
+        <Text style={styles.cardText}>
+          Selected: {item.isSelected ? "Yes" : "No"}
+        </Text>
+        <Text style={styles.cardText}>
+          Toggled By: {item.toggledBy || "None"}
+        </Text>
 
-        <Pressable
-          onPress={() => toggleItemSelected(item._id)}
-          style={styles.toggleButton}
-        >
-          <Text>Toggle Selection</Text>
+        <Pressable onPress={() => toggleItemSelected(item._id)} style={styles.button}>
+          <Text style={styles.buttonText}>
+            {item.isSelected ? "Unselect" : "Select"}
+          </Text>
         </Pressable>
-        <Pressable
-          onPress={() => deleteItem(item._id)}
-          style={styles.deleteButton}
-        >
-          <Text>Delete</Text>
+
+        <Pressable onPress={() => deleteItem(item._id)} style={styles.deleteButton}>
+          <Text style={styles.buttonText}>Delete</Text>
         </Pressable>
       </View>
     ),
@@ -207,98 +179,53 @@ const AdminDashboard = () => {
 
   return (
     <LinearGradient colors={["#007BFF88", "#00C6FF88"]} style={{ flex: 1 }}>
-      <View style={styles.container}>
-        <BlurView intensity={100} style={styles.glassContainer}>
-          <Text style={styles.title}>Admin Dashboard</Text>
-          <Text style={styles.username}>Logged in as: {userName}</Text>
+      <ScrollView>
+        <View style={styles.container}>
+          <BlurView intensity={100} style={styles.glassContainer}>
+            <Text style={styles.title}>Admin Dashboard</Text>
+            <Text style={styles.username}>Logged in as: {userName}</Text>
 
-          <Pressable
-            onPress={() => setShowCreateForm(!showCreateForm)}
-            style={styles.button}
-          >
-            <Text style={styles.buttonText}>
-              {showCreateForm ? "Hide Create Item Form" : "Show Create Item Form"}
-            </Text>
-          </Pressable>
+            <Pressable onPress={() => setShowCreateForm(!showCreateForm)} style={styles.button}>
+              <Text style={styles.buttonText}>
+                {showCreateForm ? "Hide Create Item Form" : "Show Create Item Form"}
+              </Text>
+            </Pressable>
 
-          {showCreateForm && (
-            <View>
-              <TextInput
-                placeholder="Email"
-                value={email}
-                onChangeText={setEmail}
-                style={styles.input}
-              />
-              <TextInput
-                placeholder="Item Name"
-                value={itemName}
-                onChangeText={setItemName}
-                style={styles.input}
-              />
-              <TextInput
-                placeholder="Description"
-                value={category}
-                onChangeText={setCategory}
-                style={styles.input}
-              />
-              <TextInput
-                placeholder="Details"
-                value={status}
-                onChangeText={setStatus}
-                style={styles.input}
-              />
-              <TextInput
-                placeholder="Location"
-                value={location}
-                onChangeText={setLocation}
-                style={styles.input}
-              />
-              <TextInput
-                placeholder="Database Key"
-                value={createDbKey}
-                onChangeText={setCreateDbKey}
-                style={styles.input}
-              />
-              <TextInput
-                placeholder="Database Lock"
-                value={createDbLock}
-                onChangeText={setCreateDbLock}
-                style={styles.input}
-              />
-              <Pressable onPress={handleCreateItem} style={styles.button}>
-                <Text style={styles.buttonText}>Create Item</Text>
-              </Pressable>
-            </View>
-          )}
+            {showCreateForm && (
+              <View>
+                <TextInput placeholder="Email" value={email} onChangeText={setEmail} style={styles.input} />
+                <TextInput placeholder="Item Name" value={itemName} onChangeText={setItemName} style={styles.input} />
+                <TextInput placeholder="Category" value={category} onChangeText={setCategory} style={styles.input} />
+                <TextInput placeholder="Status" value={status} onChangeText={setStatus} style={styles.input} />
+                <TextInput placeholder="Location" value={location} onChangeText={setLocation} style={styles.input} />
+                <TextInput placeholder="Database Key" value={createDbKey} onChangeText={setCreateDbKey} style={styles.input} />
+                <TextInput placeholder="Database Lock" value={createDbLock} onChangeText={setCreateDbLock} style={styles.input} />
+              </View>
+            )}
+              <Pressable onPress={fetchItems} style={styles.button}>
+              <Text style={styles.buttonText}>Fetch Items</Text>
+            </Pressable>
+            <TextInput placeholder="Database Key" value={fetchDbKey} onChangeText={setFetchDbKey} style={styles.input} />
+            <TextInput placeholder="Database Lock" value={fetchDbLock} onChangeText={setFetchDbLock} style={styles.input} />
 
-          <TextInput
-            placeholder="Database Key"
-            value={fetchDbKey}
-            onChangeText={setFetchDbKey}
-            style={styles.input}
-          />
-          <TextInput
-            placeholder="Database Lock"
-            value={fetchDbLock}
-            onChangeText={setFetchDbLock}
-            style={styles.input}
-          />
+           
 
-          <Pressable onPress={fetchItems} style={styles.button}>
-            <Text style={styles.buttonText}>Fetch Items</Text>
-          </Pressable>
+            <Pressable onPress={shareDbKey} style={styles.shareButton}>
+              <Text style={styles.shareButtonText}>Share Key via Email</Text>
+            </Pressable>
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-          <FlatList
-            data={items}
-            keyExtractor={(item) => item._id || item.id || Math.random().toString()}
-            renderItem={renderItem}
-            ListEmptyComponent={<Text>No items available.</Text>}
-            contentContainerStyle={styles.listContainer}
-          />
-        </BlurView>
-      </View>
+            <FlatList
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              data={items}
+              keyExtractor={(item) => item._id || Math.random().toString()}
+              renderItem={renderItem}
+              contentContainerStyle={styles.sliderContainer}
+            />
+          </BlurView>
+        </View>
+      </ScrollView>
     </LinearGradient>
   );
 };

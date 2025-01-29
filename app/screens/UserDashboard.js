@@ -9,6 +9,7 @@ import {
   Button,
   Alert,
   Linking,
+  Dimensions,
 } from 'react-native';
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,14 +18,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import styles from '../styles/UserDashboardStyles';
 import Constants from 'expo-constants';
 
+// Get screen width for full card display
+const { width } = Dimensions.get("window");
 
 // Dynamically determine the server URL
 const getApiUrl = () => {
-  const isDevelopment = __DEV__; // True in development mode
+  const isDevelopment = __DEV__;
   const extra = Constants.expoConfig?.extra || {};
   return isDevelopment
-    ? extra.LOCAL_API_URL || "http://localhost:5000" // Fallback for local development
-    : extra.PROD_API_URL || "https://igotit-t2uz.onrender.com"; // Fallback for production
+    ? extra.LOCAL_API_URL || "http://localhost:5000"
+    : extra.PROD_API_URL || "https://igotit-t2uz.onrender.com";
 };
 
 const apiUrl = getApiUrl();
@@ -36,51 +39,22 @@ const UserDashboard = () => {
   const [username, setUsername] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedItemName, setSelectedItemName] = useState('');
+  const [selectedItemEmail, setSelectedItemEmail] = useState('');
 
-  // Show welcome alert on mount
   useEffect(() => {
-    const showWelcomeAlert = async () => {
-      try {
-        const dismissed = await AsyncStorage.getItem('userDashboardAlertDismissed');
-        if (dismissed === 'true') return;
-
-        Alert.alert(
-          'Welcome to User Dashboard',
-          'Here you can view items, select available ones, and manage your choices using the database key.',
-          [
-            {
-              text: 'Got it',
-              onPress: () => console.log('Alert dismissed temporarily'),
-            },
-            {
-              text: 'Don\'t Show Again',
-              onPress: async () => {
-                await AsyncStorage.setItem('userDashboardAlertDismissed', 'true');
-                console.log('Alert dismissed permanently');
-              },
-              style: 'destructive',
-            },
-          ]
-        );
-      } catch (err) {
-        console.error('Error showing welcome alert:', err);
-      }
-    };
-
     const fetchUsername = async () => {
       try {
         const storedUsername = await AsyncStorage.getItem('username');
         setUsername(storedUsername || 'Unknown User');
       } catch (err) {
-        console.error('Error fetching username from AsyncStorage:', err);
+        console.error('Error fetching username:', err);
       }
     };
 
-    showWelcomeAlert();
     fetchUsername();
   }, []);
 
-  // Fetch data from server
+  // Fetch items from server
   const handleFetchData = async () => {
     if (!dbKey) {
       alert('Please enter the database key');
@@ -100,7 +74,7 @@ const UserDashboard = () => {
       }
     } catch (err) {
       console.error('Error fetching data:', err);
-      setError('Failed to fetch data. Please check your server.');
+      setError('Failed to fetch data.');
     }
   };
 
@@ -111,6 +85,7 @@ const UserDashboard = () => {
 
       if (selectedItem.isSelected) {
         setSelectedItemName(selectedItem.itemName);
+        setSelectedItemEmail(selectedItem.email); // Capture the creator's email
         setIsModalVisible(true);
         return;
       }
@@ -133,20 +108,55 @@ const UserDashboard = () => {
       );
     } catch (err) {
       console.error('Error toggling item:', err);
-      alert('Failed to toggle item. Please try again.');
+      alert('Failed to toggle item.');
     }
   };
 
   // Send email to item's creator
   const handleSendEmail = () => {
+    if (!selectedItemEmail) {
+      alert("No email available for this item.");
+      return;
+    }
+
     const subject = 'Request to Unselect an Item';
     const body = `Dear User,\n\nI would like to request unselecting the item "${selectedItemName}".\n\nThank you.`;
-    const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const mailto = `mailto:${encodeURIComponent(selectedItemEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
     Linking.openURL(mailto).catch((err) =>
       console.error('Error opening email client:', err)
     );
   };
+
+  // Render card with proper styling
+  const renderItem = ({ item }) => (
+    <View
+      style={[
+        styles.cardContainer, // Card style
+        item.isSelected ? styles.selected : { backgroundColor: '#fff' }, // White background until selected
+      ]}
+    >
+      <Text style={styles.cardTitle}>Name: {item.itemName}</Text>
+      <Text style={styles.cardText}>Category: {item.category}</Text>
+      <Text style={styles.cardText}>Status: {item.status}</Text>
+      <Text style={styles.cardText}>Location: {item.location}</Text>
+      <Text style={styles.cardText}>
+        Selected: {item.isSelected ? 'Yes' : 'No'}
+      </Text>
+      <Text style={styles.cardText}>
+        Toggled By: {item.toggledBy || 'No user'}
+      </Text>
+
+      <Pressable
+        onPress={() => toggleItemSelectedForUser(item._id)}
+        style={styles.toggleButton}
+      >
+        <Text style={styles.buttonText}>
+          {item.isSelected ? 'Unselect' : 'Select Item'}
+        </Text>
+      </Pressable>
+    </View>
+  );
 
   return (
     <LinearGradient colors={['#007BFF', '#00C6FF']} style={styles.background}>
@@ -168,43 +178,24 @@ const UserDashboard = () => {
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
+          {/* Card Slider (One Card Per View) */}
           <FlatList
             data={data}
             keyExtractor={(item) => item._id}
-            renderItem={({ item }) => (
-              <View
-                style={[
-                  styles.dataBox,
-                  item.isSelected ? styles.selected : null,
-                ]}
-              >
-                <Text style={styles.dataText}>Name: {item.itemName}</Text>
-                <Text style={styles.dataText}>Category: {item.category}</Text>
-                <Text style={styles.dataText}>Status: {item.status}</Text>
-                <Text style={styles.dataText}>Location: {item.location}</Text>
-                <Text style={styles.dataText}>
-                  Selected: {item.isSelected ? 'Yes' : 'No'}
-                </Text>
-                <Text style={styles.dataText}>
-                  Toggled By: {item.toggledBy || 'No user'}
-                </Text>
-
-                <Pressable
-                  onPress={() => toggleItemSelectedForUser(item._id)}
-                  style={styles.toggleButton}
-                >
-                  <Text style={styles.buttonText}>
-                    {item.isSelected ? 'Already Selected' : 'Select Item'}
-                  </Text>
-                </Pressable>
-              </View>
-            )}
-            contentContainerStyle={{ paddingBottom: 20 }}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>No items found</Text>
-            }
+            renderItem={renderItem}
+            horizontal
+            pagingEnabled
+            snapToAlignment="center"
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingVertical: 20 }}
+            getItemLayout={(data, index) => ({
+              length: width * 0.8,
+              offset: width * 0.8 * index,
+              index,
+            })}
           />
 
+          {/* Modal for unselecting */}
           <Modal
             animationType="slide"
             transparent
