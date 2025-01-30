@@ -5,6 +5,8 @@ const bcrypt = require('bcryptjs');
 const User = require('./models/User');
 require('dotenv').config();
 const itemsRouter = require('./api/items'); // Your item routes
+ const jwt = require('jsonwebtoken'); // Import JWT
+
 
 const app = express();
 
@@ -31,36 +33,53 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-  app.post('/login', async (req, res) => {
-    const { email, password } = req.body;
-    console.log('Received login request:', { email, password }); // Log incoming request data
+ 
+
   
-    try {
-      // Step 1: Check if user exists
-      const user = await User.findOne({ email });
-      if (!user) {
-        console.log('User not found with email:', email); // Log if user is not found
-        return res.status(400).json({ success: false, message: 'Invalid credentials' });
-      }
-  
-      console.log('User found:', user); // Log found user details (excluding password)
-  
-      // Step 2: Check if password matches
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        console.log('Password does not match for user:', email); // Log if password comparison fails
-        return res.status(400).json({ success: false, message: 'Invalid credentials' });
-      }
-  
-      console.log('Password matched successfully'); // Log successful password match
-  
-      // Step 3: Return success response
-      res.status(200).json({ success: true, message: 'Login successful', username: user.username });
-    } catch (error) {
-      console.error('Server error:', error); // Log server errors
-      res.status(500).json({ success: false, message: error.message });
+
+app.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+  console.log('Received login request:', { email, password });
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      console.log('User not found with email:', email);
+      return res.status(400).json({ success: false, message: 'Invalid credentials' });
     }
-  });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      console.log('Password does not match for user:', email);
+      return res.status(400).json({ success: false, message: 'Invalid credentials' });
+    }
+
+    console.log('Password matched successfully');
+
+    // ✅ Step 3: Generate JWT Token
+    const token = jwt.sign(
+      { userId: user._id, email: user.email },
+      process.env.JWT_SECRET, // Ensure this is in your .env file
+      { expiresIn: '24h' } // Token expires in 24 hours
+    );
+
+    console.log('✅ Token generated:', token);
+
+    // ✅ Step 4: Return success response with token
+    res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      token,  // ✅ Send token in response
+      username: user.username,
+    });
+
+  } catch (error) {
+    console.error('Server error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+  
   
 
 // Register Route

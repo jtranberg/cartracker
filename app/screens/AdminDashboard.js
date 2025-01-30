@@ -162,27 +162,31 @@ const AdminDashboard = () => {
         <Text style={styles.cardText}>
           Toggled By: {item.toggledBy || "None"}
         </Text>
-
-        <Pressable onPress={() => toggleItemSelected(item._id)} style={styles.button}>
-          <Text style={styles.buttonText}>
-            {item.isSelected ? "Unselect" : "Select"}
-          </Text>
-        </Pressable>
-
-        <Pressable onPress={() => deleteItem(item._id)} style={styles.deleteButton}>
-          <Text style={styles.buttonText}>Delete</Text>
-        </Pressable>
+  
+        {/* Wrap buttons in a row container */}
+        <View style={styles.buttonRow}>
+          <Pressable onPress={() => toggleItemSelected(item._id)} style={styles.button}>
+            <Text style={styles.buttonText}>
+              {item.isSelected ? "Unselect" : "Select"}
+            </Text>
+          </Pressable>
+  
+          <Pressable onPress={() => deleteItem(item._id)} style={styles.deleteButton}>
+            <Text style={styles.buttonText}>Delete</Text>
+          </Pressable>
+        </View>
       </View>
     ),
     [items]
   );
+  
 
   return (
     <LinearGradient colors={["#007BFF88", "#00C6FF88"]} style={{ flex: 1 }}>
       <ScrollView>
         <View style={styles.container}>
           <BlurView intensity={100} style={styles.glassContainer}>
-            <Text style={styles.title}>Admin Dashboard</Text>
+            <Text style={styles.title}>Admin Database Dashboard</Text>
             <Text style={styles.username}>Logged in as: {userName}</Text>
 
             <Pressable onPress={() => setShowCreateForm(!showCreateForm)} style={styles.button}>
@@ -207,13 +211,6 @@ const AdminDashboard = () => {
             </Pressable>
             <TextInput placeholder="Database Key" value={fetchDbKey} onChangeText={setFetchDbKey} style={styles.input} />
             <TextInput placeholder="Database Lock" value={fetchDbLock} onChangeText={setFetchDbLock} style={styles.input} />
-
-           
-
-            <Pressable onPress={shareDbKey} style={styles.shareButton}>
-              <Text style={styles.shareButtonText}>Share Key via Email</Text>
-            </Pressable>
-
             <FlatList
               horizontal
               pagingEnabled
@@ -221,8 +218,10 @@ const AdminDashboard = () => {
               data={items}
               keyExtractor={(item) => item._id || Math.random().toString()}
               renderItem={renderItem}
-              contentContainerStyle={styles.sliderContainer}
-            />
+              contentContainerStyle={styles.sliderContainer}/>
+              <Pressable onPress={shareDbKey} style={styles.shareButton}>
+              <Text style={styles.shareButtonText}>Share Key via Email</Text>
+            </Pressable>
           </BlurView>
         </View>
       </ScrollView>

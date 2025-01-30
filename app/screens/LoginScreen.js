@@ -1,103 +1,89 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ImageBackground, Dimensions } from 'react-native';
+import React, { useState } from 'react';
+import { View, TextInput, Button, StyleSheet, Text, ImageBackground } from 'react-native';
+import axios from 'axios';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient'; // Import LinearGradient
-import { BlurView } from 'expo-blur'; // Import BlurView for glass effect
-import AsyncStorage from '@react-native-async-storage/async-storage'; // For storing user choice
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants'; // ✅ Import expo-constants
 
-export default function HomeScreen() {
-  const router = useRouter(); // Initialize useRouter inside the component
-  const [showAlert, setShowAlert] = useState(false);
+// ✅ Dynamically use local or production API
+const API_BASE_URL = __DEV__
+  ? Constants.expoConfig?.extra?.LOCAL_API_URL  // Use local API when in dev mode
+  : Constants.expoConfig?.extra?.PROD_API_URL;  // Use production API otherwise
 
-  // Check if the alert should be shown
-  useEffect(() => {
-    const checkAlertStatus = async () => {
-      try {
-        const value = await AsyncStorage.getItem('hideAlert');
-        if (value === null) {
-          // If 'hideAlert' is not set, show the alert
-          setShowAlert(true);
-        }
-      } catch (error) {
-        console.error('Error checking alert status:', error);
-      }
-    };
+console.log('🌍 Using API_BASE_URL:', API_BASE_URL); // ✅ Log the API URL in use
 
-    checkAlertStatus();
-  }, []);
+export default function LoginScreen() {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleAlertDismiss = async (hide) => {
-    if (hide) {
-      try {
-        await AsyncStorage.setItem('hideAlert', 'true');
-      } catch (error) {
-        console.error('Error saving alert status:', error);
-      }
+  const handleLogin = async () => {
+    if (!email || !password) {
+      setErrorMessage('Please enter both email and password');
+      return;
     }
-    setShowAlert(false);
+
+    try {
+      console.log('🔄 Sending login request:', { email, password });
+
+      const response = await axios.post(`${API_BASE_URL}/login`, { // ✅ Uses dynamic URL
+        email,
+        password,
+      });
+
+      console.log('✅ Server response:', response.data);
+
+      if (response.data.success && response.data.token) {
+        await AsyncStorage.setItem('userToken', response.data.token); // ✅ Store token
+        console.log('🔑 Token saved, redirecting to Home...');
+        router.replace('/screens/HomeScreen'); // ✅ Redirect to Home
+      } else {
+        setErrorMessage(response.data.message || 'Login failed');
+        console.log('⚠️ Login failed:', response.data.message);
+      }
+    } catch (error) {
+      setErrorMessage(error.response?.data?.message || 'An error occurred during login');
+      console.log('❌ Error:', error.response?.data?.message || error.message);
+    }
   };
 
-  // Show the alert if showAlert is true
-  useEffect(() => {
-    if (showAlert) {
-      Alert.alert(
-        'Welcome to "I GOT IT!"',
-        `This app helps you create and track your business items efficiently. 
-Use the Admin Dashboard to create your database and items. 
-Then share your Key to allow others access to your Database. 
-Use the User Dashboard to see the database. 
-Tap to select the item to be tracked. 
-Hit refresh to update the Database.`,
-        [
-          { text: "Got it!", onPress: () => handleAlertDismiss(false) },
-          {
-            text: "Don't show again",
-            onPress: () => handleAlertDismiss(true),
-            style: 'destructive',
-          },
-        ]
-      );
-    }
-  }, [showAlert]);
-
   return (
-    <ImageBackground
-      source={require('../../assets/images/office.png')} // Path to your background image
+    <ImageBackground 
+      source={require('../../assets/images/office.png')} 
       style={styles.background}
-      resizeMode="cover" // Ensures the image scales proportionally
     >
-      <LinearGradient
-        colors={['rgba(14,110,126,0.7)', 'rgba(8,159,190,0.7)']} // Blue gradient with transparency
-        style={styles.background}
-      >
-        <View style={styles.container}>
-          <BlurView intensity={80} style={styles.innerContainer}>
-            <Text style={styles.title}>"I GOT IT!"</Text>
-            <Text style={styles.message}>Business Items Tracker.</Text>
-            <Text style={styles.message}>
-              Create and Track your business items.
-            </Text>
+      <View style={styles.container}>
+        <Text style={styles.title}>Login</Text>
 
-            <TouchableOpacity 
-              style={styles.button} 
-              onPress={() => router.push('../screens/AdminDashboard')}>
-              <Text style={styles.buttonText}>Go to Admin Dashboard</Text>
-            </TouchableOpacity>
+        {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
 
-            <TouchableOpacity 
-              style={styles.button} 
-              onPress={() => router.push('../screens/UserDashboard')}>
-              <Text style={styles.buttonText}>Go to User Dashboard</Text>
-            </TouchableOpacity>
+        <TextInput
+          placeholder="Email"
+          style={styles.input}
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+        
+        <TextInput
+          placeholder="Password"
+          style={styles.input}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
 
-            <TouchableOpacity 
-              style={[styles.button, { backgroundColor: '#333' }]} 
-              onPress={() => router.replace('/screens/LoginScreen')}>
-              <Text style={styles.buttonText}>Log Out</Text>
-            </TouchableOpacity>
-          </BlurView>
-        </View>
-      </LinearGradient>
+        <Button title="Log In" onPress={handleLogin} color="#1E90FF" />
+
+        <Text
+          style={styles.registerLink}
+          onPress={() => router.push('/screens/RegisterScreen')}
+        >
+          Don't have an account? Register
+        </Text>
+      </View>
     </ImageBackground>
   );
 }
@@ -105,53 +91,38 @@ Hit refresh to update the Database.`,
 const styles = StyleSheet.create({
   background: {
     flex: 1,
-    width: '100%', // Ensures the background image scales to full width
-    height: '100%', // Ensures the background image scales to full height
-  },
-  container: {
-    marginTop:"10%",
-    maxWidth:"80%",
-    maxHeight:"80%",
-    margin:"auto",
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  innerContainer: {
+  container: {
+    width: '80%',
     padding: 20,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)', // Transparent background for glassmorphism
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    borderWidth: 1,
-    width: '90%',
-    maxWidth: 400,
-    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 10,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 20,
-    color: '#fff', // White text for the title
   },
-  message: {
-    fontSize: 18,
-    marginBottom: 20,
-    textAlign: 'center',
-    color: '#fff', // White text for the messages
-  },
-  button: {
-    backgroundColor: '#1E90FF',
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
     padding: 15,
-    marginVertical: 10,
+    marginBottom: 15,
     borderRadius: 10,
-    alignItems: 'center',
-    width: '100%',
+    backgroundColor: '#fff',
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
+  error: {
+    color: 'red',
     textAlign: 'center',
-    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  registerLink: {
+    marginTop: 20,
+    textAlign: 'center',
+    color: '#1E90FF',
+    textDecorationLine: 'underline',
   },
 });

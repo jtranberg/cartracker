@@ -130,12 +130,7 @@ const UserDashboard = () => {
 
   // Render card with proper styling
   const renderItem = ({ item }) => (
-    <View
-      style={[
-        styles.cardContainer, // Card style
-        item.isSelected ? styles.selected : { backgroundColor: '#fff' }, // White background until selected
-      ]}
-    >
+    <View style={[styles.cardContainer, item.isSelected ? styles.selected : null]}>
       <Text style={styles.cardTitle}>Name: {item.itemName}</Text>
       <Text style={styles.cardText}>Category: {item.category}</Text>
       <Text style={styles.cardText}>Status: {item.status}</Text>
