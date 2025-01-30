@@ -1,9 +1,10 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const User = require('./models/User');
-require('dotenv').config();
+
 const itemsRouter = require('./api/items'); // Your item routes
  const jwt = require('jsonwebtoken'); // Import JWT
 
@@ -21,6 +22,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
 
 // Middleware to parse JSON request bodies
 app.use(express.json());
