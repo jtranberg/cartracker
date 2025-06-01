@@ -39,18 +39,18 @@ mongoose.connect(process.env.MONGO_URI)
 
 app.post('/create-checkout-session', async (req, res) => {
   try {
+    const { email } = req.body;
+
     const session = await stripe.checkout.sessions.create({
-      mode: 'subscription', // 👈 REQUIRED for recurring payments
+      mode: 'subscription',
       payment_method_types: ['card'],
+      customer_email: email, // ✅ Use Stripe-native email handling
       line_items: [
         {
-          price: 'price_1RV3x300utQSZbpF7lQyv2Fl', // 👈 Your $5/month subscription
+          price: 'price_1RV3x300utQSZbpF7lQyv2Fl', // Your $5/month plan
           quantity: 1,
         },
       ],
-      metadata: {
-        email: req.body.email, // 👈 Optional, helps link to user
-      },
       success_url: 'https://theinandoutapp.com/success',
       cancel_url: 'https://theinandoutapp.com/cancel',
     });
