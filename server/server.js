@@ -37,23 +37,19 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
- app.post('/create-checkout-session', async (req, res) => {
+app.post('/create-checkout-session', async (req, res) => {
   try {
     const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
+      mode: 'subscription', // 👈 REQUIRED for recurring payments
       payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: 'usd',
-          product_data: {
-            name: 'The In and Out App Pro Access',
-          },
-          unit_amount: 999, // $9.99 in cents
+      line_items: [
+        {
+          price: 'price_1RV3x300utQSZbpF7lQyv2Fl', // 👈 Your $5/month subscription
+          quantity: 1,
         },
-        quantity: 1,
-      }],
+      ],
       metadata: {
-        email: req.body.email, // Required to link to user
+        email: req.body.email, // 👈 Optional, helps link to user
       },
       success_url: 'https://theinandoutapp.com/success',
       cancel_url: 'https://theinandoutapp.com/cancel',
@@ -65,6 +61,7 @@ mongoose.connect(process.env.MONGO_URI)
     res.status(500).json({ error: err.message });
   }
 });
+
 
 app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
   const sig = req.headers['stripe-signature'];
