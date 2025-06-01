@@ -15,7 +15,7 @@ export default function VehicleDetails({ route }) {
         if (docSnap.exists()) {
           setVehicleData(docSnap.data());
         } else {
-          console.log('No such vehicle!');
+          console.log('No such Item');
         }
       } catch (error) {
         console.error('Error fetching vehicle data:', error);

@@ -6,31 +6,75 @@ import {
   TouchableOpacity,
   ImageBackground,
   Linking,
+  TextInput,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
+import Constants from "expo-constants";
+
+const API_BASE_URL =
+  Constants.expoConfig?.extra?.PROD_API_URL ||
+  "https://cartracker-t4bc.onrender.com";
 
 export default function HomeScreen() {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [plan, setPlan] = useState(null);
+  const [emailForCheckout, setEmailForCheckout] = useState("");
 
-  useEffect(() => {
-    const checkAuthStatus = async () => {
-      const token = await AsyncStorage.getItem("userToken");
-      const storedPlan = await AsyncStorage.getItem("plan"); // Get the plan
-      if (!token) {
-        router.replace("/screens/LoginScreen");
-      } else {
-        setIsLoggedIn(true);
-        setPlan(storedPlan || "free"); // Default to free
+useEffect(() => {
+  const checkAuthStatus = async () => {
+    const token = await AsyncStorage.getItem("userToken");
+    const storedPlan = await AsyncStorage.getItem("plan");
+    const savedEmail = await AsyncStorage.getItem("pendingEmail");
+
+    if (!token) {
+      router.replace("/screens/LoginScreen");
+    } else {
+      setIsLoggedIn(true);
+      setPlan(storedPlan || "free");
+
+      // Pre-fill email if pending from Stripe
+      if (savedEmail) {
+        setEmailForCheckout(savedEmail);
+        if (storedPlan === "pro") {
+          await AsyncStorage.removeItem("pendingEmail"); // ✅ clear if upgraded
+        }
       }
-    };
+    }
+  };
 
-    checkAuthStatus();
-  }, []);
+  checkAuthStatus();
+}, []);
+
+
+  const handleUpgrade = async () => {
+    if (!emailForCheckout) {
+      Alert.alert("Missing Email", "Please enter your email to continue.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/create-checkout-session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailForCheckout }),
+      });
+
+      const data = await response.json();
+      if (data.url) {
+        Linking.openURL(data.url);
+      } else {
+        Alert.alert("Error", "Unable to initiate checkout.");
+      }
+    } catch (err) {
+      console.error("Checkout Error:", err);
+      Alert.alert("Error", "Something went wrong while starting checkout.");
+    }
+  };
 
   if (!isLoggedIn) return null;
 
@@ -68,11 +112,19 @@ export default function HomeScreen() {
                 <Text style={styles.message}>
                   🚫 Premium features are locked
                 </Text>
+                <TextInput
+                  placeholder="Enter your email"
+                  value={emailForCheckout}
+                  onChangeText={setEmailForCheckout}
+                  style={styles.input}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
                 <TouchableOpacity
                   style={[styles.button, { backgroundColor: "#f39c12" }]}
-                  onPress={() => Linking.openURL("https://theinandoutapp.com")}
+                  onPress={handleUpgrade}
                 >
-                  <Text style={styles.buttonText}>Upgrade to Pro</Text>
+                  <Text style={styles.buttonText}>Get Access</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -118,6 +170,15 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: "center",
     color: "#fff",
+  },
+  input: {
+    backgroundColor: "#fff",
+    padding: 12,
+    borderRadius: 10,
+    width: "100%",
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#ccc",
   },
   button: {
     backgroundColor: "#1E90FF",

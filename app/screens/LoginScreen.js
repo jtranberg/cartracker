@@ -1,18 +1,22 @@
-import React, { useState } from "react";
-import { View, TextInput, Button, StyleSheet, Text, ImageBackground } from "react-native";
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  TextInput,
+  Button,
+  StyleSheet,
+  Text,
+  ImageBackground,
+} from "react-native";
 import axios from "axios";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Constants from "expo-constants"; // ✅ Import expo-constants
+import Constants from "expo-constants";
 
-// ✅ Dynamically use local or production API with fallback
-// const API_BASE_URL = __DEV__
-//   ? (Constants.expoConfig?.extra?.LOCAL_API_URL || "http://localhost:5000")  // Ensure fallback for local dev
-//   : (Constants.expoConfig?.extra?.PROD_API_URL || "https://cartracker-t4bc.onrender.com"); // Ensure fallback for production
-// ⚠️ TEMP: Force using production backend even during dev
-const API_BASE_URL = Constants.expoConfig?.extra?.PROD_API_URL || "https://cartracker-t4bc.onrender.com";
+const API_BASE_URL =
+  Constants.expoConfig?.extra?.PROD_API_URL ||
+  "https://cartracker-t4bc.onrender.com";
 
-console.log("🌍 Using API_BASE_URL:", API_BASE_URL); // ✅ Log the API URL in use
+console.log("🌍 Using API_BASE_URL:", API_BASE_URL);
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -20,50 +24,68 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
+  // ✅ Auto-fill email if saved from Stripe flow
+  useEffect(() => {
+    const prefillEmail = async () => {
+      const savedEmail = await AsyncStorage.getItem("pendingEmail");
+      if (savedEmail) {
+        setEmail(savedEmail);
+        await AsyncStorage.removeItem("pendingEmail");
+      }
+    };
+    prefillEmail();
+  }, []);
+
   const handleLogin = async () => {
-  if (!email || !password) {
-    setErrorMessage("Please enter both email and password");
-    return;
-  }
-
-  try {
-    console.log("🔄 Sending login request to:", `${API_BASE_URL}/login`);
-    console.log("📧 Login Data:", { email, password });
-
-    const response = await axios.post(`${API_BASE_URL}/login`, { email, password });
-
-    console.log("✅ Server response:", response.data);
-
-    if (response.data.success && response.data.token) {
-      const userPlan = response.data.plan || "free";
-
-      // Save to AsyncStorage
-      await AsyncStorage.setItem("userToken", response.data.token);
-      await AsyncStorage.setItem("username", response.data.username || "Unknown");
-      await AsyncStorage.setItem("plan", userPlan);
-
-      console.log(`🔐 Logged in as ${response.data.username}, plan: ${userPlan}`);
-
-      router.replace("/screens/HomeScreen");
-    } else {
-      setErrorMessage(response.data.message || "Login failed");
-      console.log("⚠️ Login failed:", response.data.message);
+    if (!email || !password) {
+      setErrorMessage("Please enter both email and password");
+      return;
     }
-  } catch (error) {
-    console.error("❌ Error during login:", error);
-    setErrorMessage(error.response?.data?.message || "An error occurred during login");
 
-    // Log detailed error response
-    console.log("❌ Full Error Response:", error.response?.data);
-    console.log("❌ HTTP Status:", error.response?.status);
-    console.log("❌ Response Headers:", error.response?.headers);
-  }
-};
+    try {
+      console.log("🔄 Sending login request to:", `${API_BASE_URL}/login`);
+      console.log("📧 Login Data:", { email, password });
 
+      const response = await axios.post(`${API_BASE_URL}/login`, {
+        email,
+        password,
+      });
 
+      console.log("✅ Server response:", response.data);
+
+      if (response.data.success && response.data.token) {
+        const userPlan = response.data.plan || "free";
+
+        // Save to AsyncStorage
+        await AsyncStorage.setItem("userToken", response.data.token);
+        await AsyncStorage.setItem(
+          "username",
+          response.data.username || "Unknown"
+        );
+        await AsyncStorage.setItem("plan", userPlan);
+
+        console.log(`🔐 Logged in as ${response.data.username}, plan: ${userPlan}`);
+        router.replace("/screens/HomeScreen");
+      } else {
+        setErrorMessage(response.data.message || "Login failed");
+        console.log("⚠️ Login failed:", response.data.message);
+      }
+    } catch (error) {
+      console.error("❌ Error during login:", error);
+      setErrorMessage(
+        error.response?.data?.message || "An error occurred during login"
+      );
+      console.log("❌ Full Error Response:", error.response?.data);
+      console.log("❌ HTTP Status:", error.response?.status);
+      console.log("❌ Response Headers:", error.response?.headers);
+    }
+  };
 
   return (
-    <ImageBackground source={require("../../assets/images/office.png")} style={styles.background}>
+    <ImageBackground
+      source={require("../../assets/images/office.png")}
+      style={styles.background}
+    >
       <View style={styles.container}>
         <Text style={styles.title}>Login</Text>
 
@@ -88,7 +110,10 @@ export default function LoginScreen() {
 
         <Button title="Log In" onPress={handleLogin} color="#1E90FF" />
 
-        <Text style={styles.registerLink} onPress={() => router.push("/screens/RegisterScreen")}>
+        <Text
+          style={styles.registerLink}
+          onPress={() => router.push("/screens/RegisterScreen")}
+        >
           Don't have an account? Register
         </Text>
       </View>
