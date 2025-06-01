@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "IGOTIT!",
+    "name": "The In and Out App!",
     "slug": "igotit",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -26,7 +26,7 @@
     "web": {
       "bundler": "metro",
       "favicon": "./assets/images/favicon.png",
-      "title": "IGOTIT! - Track Your Items"
+      "title": "The In and Out App! - Track Your Items"
     },
     "plugins": [
       "expo-router",
