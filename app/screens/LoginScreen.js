@@ -6,9 +6,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants"; // ✅ Import expo-constants
 
 // ✅ Dynamically use local or production API with fallback
-const API_BASE_URL = __DEV__
-  ? (Constants.expoConfig?.extra?.LOCAL_API_URL || "http://localhost:5000")  // Ensure fallback for local dev
-  : (Constants.expoConfig?.extra?.PROD_API_URL || "https://igotit-t2uz.onrender.com"); // Ensure fallback for production
+// const API_BASE_URL = __DEV__
+//   ? (Constants.expoConfig?.extra?.LOCAL_API_URL || "http://localhost:5000")  // Ensure fallback for local dev
+//   : (Constants.expoConfig?.extra?.PROD_API_URL || "https://cartracker-t4bc.onrender.com"); // Ensure fallback for production
+// ⚠️ TEMP: Force using production backend even during dev
+const API_BASE_URL = Constants.expoConfig?.extra?.PROD_API_URL || "https://cartracker-t4bc.onrender.com";
 
 console.log("🌍 Using API_BASE_URL:", API_BASE_URL); // ✅ Log the API URL in use
 
@@ -19,43 +21,42 @@ export default function LoginScreen() {
   const [errorMessage, setErrorMessage] = useState("");
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      setErrorMessage("Please enter both email and password");
-      return;
+  if (!email || !password) {
+    setErrorMessage("Please enter both email and password");
+    return;
+  }
+
+  try {
+    console.log("🔄 Sending login request to:", `${API_BASE_URL}/login`);
+    console.log("📧 Login Data:", { email, password });
+
+    const response = await axios.post(`${API_BASE_URL}/login`, { email, password });
+
+    console.log("✅ Server response:", response.data);
+
+    if (response.data.success && response.data.token) {
+      // Save token, username, and plan to AsyncStorage
+      await AsyncStorage.setItem("userToken", response.data.token);
+      await AsyncStorage.setItem("username", response.data.username || "Unknown");
+      await AsyncStorage.setItem("plan", response.data.plan || "free");
+
+      console.log("🔑 Token, Username & Plan saved, redirecting to Home...");
+      router.replace("/screens/HomeScreen");
+    } else {
+      setErrorMessage(response.data.message || "Login failed");
+      console.log("⚠️ Login failed:", response.data.message);
     }
+  } catch (error) {
+    console.error("❌ Error during login:", error);
+    setErrorMessage(error.response?.data?.message || "An error occurred during login");
 
-    try {
-      console.log("🔄 Sending login request to:", `${API_BASE_URL}/login`);
-      console.log("📧 Login Data:", { email, password });
+    // Log detailed error response
+    console.log("❌ Full Error Response:", error.response?.data);
+    console.log("❌ HTTP Status:", error.response?.status);
+    console.log("❌ Response Headers:", error.response?.headers);
+  }
+};
 
-      const response = await axios.post(`${API_BASE_URL}/login`, { email, password });
-
-      console.log("✅ Server response:", response.data);
-
-      if (response.data.success && response.data.token) {
-        // Save token
-        await AsyncStorage.setItem("userToken", response.data.token);
-      
-        // Fix: Read `username` directly instead of `user.username`
-        await AsyncStorage.setItem("username", response.data.username || "Unknown");
-      
-        console.log("🔑 Token & User Data saved, redirecting to Home...");
-        router.replace("/screens/HomeScreen");
-      }
-      else {
-        setErrorMessage(response.data.message || "Login failed");
-        console.log("⚠️ Login failed:", response.data.message);
-      }
-    } catch (error) {
-      console.error("❌ Error during login:", error);
-      setErrorMessage(error.response?.data?.message || "An error occurred during login");
-
-      // Log detailed error response
-      console.log("❌ Full Error Response:", error.response?.data);
-      console.log("❌ HTTP Status:", error.response?.status);
-      console.log("❌ Response Headers:", error.response?.headers);
-    }
-  };
 
   return (
     <ImageBackground source={require("../../assets/images/office.png")} style={styles.background}>

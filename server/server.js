@@ -7,14 +7,16 @@ const User = require('./models/User');
 
 const itemsRouter = require('./api/items'); // Your item routes
  const jwt = require('jsonwebtoken'); // Import JWT
-
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 const app = express();
 
 // Use the correct CORS configuration
 app.use(cors({
   origin: [
-    'https://igotit-t2uz.onrender.com', 
+    'https://theinandoutapp.com',
+    'https://cartracker-t4bc.onrender.com', 
     'http://localhost:8081',
     'http://localhost:5000',
     'http://10.0.0.167:5000'  // Add your local machine's IP
@@ -35,7 +37,57 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
- 
+ app.post('/create-checkout-session', async (req, res) => {
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: 'The In and Out App Pro Access',
+          },
+          unit_amount: 999, // $9.99 in cents
+        },
+        quantity: 1,
+      }],
+      metadata: {
+        email: req.body.email, // Required to link to user
+      },
+      success_url: 'https://theinandoutapp.com/success',
+      cancel_url: 'https://theinandoutapp.com/cancel',
+    });
+
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error('Stripe error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+  const sig = req.headers['stripe-signature'];
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+  } catch (err) {
+    console.error('Webhook signature error:', err);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  if (event.type === 'checkout.session.completed') {
+    const email = event.data.object.metadata.email;
+
+    // Update user's plan
+    User.findOneAndUpdate({ email }, { plan: 'pro' }, { new: true })
+      .then(() => console.log(`✅ Upgraded ${email} to PRO`))
+      .catch(err => console.error('Mongo update error:', err));
+  }
+
+  res.json({ received: true });
+});
 
   
 
@@ -68,12 +120,13 @@ app.post('/login', async (req, res) => {
     console.log('✅ Token generated:', token);
 
     // ✅ Step 4: Return success response with token
-    res.status(200).json({
-      success: true,
-      message: 'Login successful',
-      token,  // ✅ Send token in response
-      username: user.username,
-    });
+   res.status(200).json({
+  success: true,
+  message: 'Login successful',
+  token,
+  username: user.username,
+  plan: user.plan || 'free',  // ✅ Send the plan here
+});
 
   } catch (error) {
     console.error('Server error:', error);

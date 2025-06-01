@@ -22,15 +22,10 @@ import Constants from 'expo-constants';
 const { width } = Dimensions.get("window");
 
 // Dynamically determine the server URL
-const getApiUrl = () => {
-  const isDevelopment = __DEV__;
-  const extra = Constants.expoConfig?.extra || {};
-  return isDevelopment
-    ? extra.LOCAL_API_URL || "http://localhost:5000"
-    : extra.PROD_API_URL || "https://igotit-t2uz.onrender.com";
-};
+const apiUrl = Constants.expoConfig?.extra?.PROD_API_URL || "https://cartracker-t4bc.onrender.com";
+console.log("🌐 Using API URL:", apiUrl);
 
-const apiUrl = getApiUrl();
+
 
 const UserDashboard = () => {
   const [dbKey, setDbKey] = useState('');
@@ -60,12 +55,15 @@ const UserDashboard = () => {
       alert('Please enter the database key');
       return;
     }
-
+  
+    console.log("📡 Fetching from:", `${apiUrl}/api/items`);
+    console.log("🧾 With params:", { dbKey, isAdmin: false });
+  
     try {
       const response = await axios.get(`${apiUrl}/api/items`, {
         params: { dbKey, isAdmin: false },
       });
-
+  
       if (response.data && Array.isArray(response.data)) {
         setData(response.data);
         setError('');
@@ -73,10 +71,17 @@ const UserDashboard = () => {
         setError('No data found.');
       }
     } catch (err) {
-      console.error('Error fetching data:', err);
-      setError('Failed to fetch data.');
+      if (__DEV__) {
+        // Dev console logging only when debugging
+        console.log('🔍 Axios error details:', err.toJSON?.() || err.message);
+      }
+      
+      // Show clean user message only
+      setError('Check database key — no matching items found or connection failed.');
     }
+    
   };
+  
 
   // Toggle item selection
   const toggleItemSelectedForUser = async (itemId) => {

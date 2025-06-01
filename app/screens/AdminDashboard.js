@@ -20,15 +20,11 @@ import Constants from "expo-constants";
 const { width } = Dimensions.get("window");
 
 // Dynamically determine the server URL
-const getApiUrl = () => {
-  const isDevelopment = __DEV__;
-  const extra = Constants.expoConfig?.extra || {};
-  return isDevelopment
-    ? extra.LOCAL_API_URL || "http://localhost:5000"
-    : extra.PROD_API_URL || "https://igotit-t2uz.onrender.com";
-};
+const apiUrl = Constants.expoConfig?.extra?.PROD_API_URL || "https://cartracker-t4bc.onrender.com";
+console.log("🌐 Using API URL:", apiUrl);
 
-const apiUrl = getApiUrl();
+
+
 
 const AdminDashboard = () => {
   const [itemName, setItemName] = useState("");
@@ -76,24 +72,77 @@ const AdminDashboard = () => {
     initialize();
   }, []);
 
-  const fetchItems = useCallback(async () => {
-    if (!fetchDbKey || !fetchDbLock) {
-      alert("Please provide both database key and lock.");
+  const createItem = async () => {
+    if (!email.trim() || !itemName.trim() || !category.trim() || !status.trim() || !location.trim() || !createDbKey.trim() || !createDbLock.trim() || !userName.trim()) {
+      alert("All fields are required to create an item.");
       return;
     }
-
+  
+    const payload = {
+      itemName: itemName.trim(),
+      category: category.trim(),
+      status: status.trim(),
+      location: location.trim(),
+      databaseKey: createDbKey.trim(), // ✅ Must match backend field name
+      databaseLock: createDbLock.trim(), // ✅ Must match backend field name
+      userName: userName.trim(), // ✅ Backend expects "userName"
+      email: email.trim(),
+    };
+  
+    console.log("🔍 Sending payload to backend:", payload); // ✅ Debugging
+  
     try {
-      const response = await axios.get(`${apiUrl}/api/items`, {
-        params: { dbKey: fetchDbKey, dbLock: fetchDbLock, isAdmin: true },
+      const response = await axios.post(`${apiUrl}/api/items`, payload, {
+        headers: { "Content-Type": "application/json" },
       });
-
-      setItems(response.data);
-      setError("");
+  
+      alert("✅ Item created successfully.");
+  
+      // ✅ Clear input fields after successful creation
+      setEmail("");
+      setItemName("");
+      setCategory("");
+      setStatus("");
+      setLocation("");
+      setCreateDbKey("");
+      setCreateDbLock("");
+  
+      fetchItems(); // ✅ Refresh items
     } catch (err) {
-      console.error("Error fetching items:", err);
-      setError("Failed to fetch items.");
+      console.error("🚨 Error creating item:", err.response?.data || err.message);
+      alert("Failed to create item. " + (err.response?.data?.message || "Check the input fields."));
     }
-  }, [fetchDbKey, fetchDbLock]);
+  };
+  
+
+  // Replace this:
+const fetchItems = useCallback(async () => {
+  if (!fetchDbKey || !fetchDbLock) {
+    alert("Please provide both database key and lock.");
+    return;
+  }
+
+  console.log("📡 Fetching from:", `${apiUrl}/api/items`);
+  console.log("🧾 With params:", {
+    dbKey: fetchDbKey,
+    dbLock: fetchDbLock,
+    isAdmin: true,
+  });
+
+  try {
+    const response = await axios.get(`${apiUrl}/api/items`, {
+      params: { dbKey: fetchDbKey, dbLock: fetchDbLock, isAdmin: true },
+    });
+
+    setItems(response.data);
+    setError("");
+  } catch (err) {
+    console.error("❌ Error fetching items:", err.message);
+    console.log("🔍 Axios Error Detail:", err.toJSON?.() || err);
+    setError("Failed to fetch items.");
+  }
+}, [fetchDbKey, fetchDbLock]);
+
 
   const toggleItemSelected = async (itemId) => {
     if (!fetchDbKey || !fetchDbLock) {
@@ -196,16 +245,21 @@ const AdminDashboard = () => {
             </Pressable>
 
             {showCreateForm && (
-              <View>
-                <TextInput placeholder="Email" value={email} onChangeText={setEmail} style={styles.input} />
-                <TextInput placeholder="Item Name" value={itemName} onChangeText={setItemName} style={styles.input} />
-                <TextInput placeholder="Category" value={category} onChangeText={setCategory} style={styles.input} />
-                <TextInput placeholder="Status" value={status} onChangeText={setStatus} style={styles.input} />
-                <TextInput placeholder="Location" value={location} onChangeText={setLocation} style={styles.input} />
-                <TextInput placeholder="Database Key" value={createDbKey} onChangeText={setCreateDbKey} style={styles.input} />
-                <TextInput placeholder="Database Lock" value={createDbLock} onChangeText={setCreateDbLock} style={styles.input} />
-              </View>
-            )}
+  <View>
+    <TextInput placeholder="Email" value={email} onChangeText={setEmail} style={styles.input} />
+    <TextInput placeholder="Item Name" value={itemName} onChangeText={setItemName} style={styles.input} />
+    <TextInput placeholder="Category" value={category} onChangeText={setCategory} style={styles.input} />
+    <TextInput placeholder="Status" value={status} onChangeText={setStatus} style={styles.input} />
+    <TextInput placeholder="Location" value={location} onChangeText={setLocation} style={styles.input} />
+    <TextInput placeholder="Database Key" value={createDbKey} onChangeText={setCreateDbKey} style={styles.input} />
+    <TextInput placeholder="Database Lock" value={createDbLock} onChangeText={setCreateDbLock} style={styles.input} />
+
+    {/* ✅ Added Back the "Create Item" Button */}
+    <Pressable onPress={createItem} style={styles.button}>
+      <Text style={styles.buttonText}>Create Item</Text>
+    </Pressable>
+  </View>
+)}
               <Pressable onPress={fetchItems} style={styles.button}>
               <Text style={styles.buttonText}>Fetch Items</Text>
             </Pressable>

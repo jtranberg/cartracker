@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { View, TextInput, Button, StyleSheet, Text } from 'react-native';
 import axios from 'axios';
-import { useRouter } from 'expo-router'; // Import useRouter from expo-router
+import { useRouter } from 'expo-router';
+import Constants from 'expo-constants'; // ✅ Needed for API URL
+
+// ✅ Use production API fallback directly
+const API_BASE_URL = Constants.expoConfig?.extra?.PROD_API_URL || "https://cartracker-t4bc.onrender.com";
+console.log("🌐 Using API_BASE_URL:", API_BASE_URL);
 
 export default function RegisterScreen() {
   const [username, setUsername] = useState(''); 
@@ -10,7 +15,7 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState(''); 
   const [errorMessage, setErrorMessage] = useState('');
   
-  const router = useRouter(); // Use router from expo-router
+  const router = useRouter();
 
   const handleRegister = async () => {
     if (password !== confirmPassword) {
@@ -19,19 +24,23 @@ export default function RegisterScreen() {
     }
 
     try {
-      console.log('Sending registration data:', { username, email, password }); // Log the data being sent
-      const response = await axios.post('https://igotit-t2uz.onrender.com/register', {
+      console.log('📦 Sending registration data:', { username, email, password });
+
+      const response = await axios.post(`${API_BASE_URL}/register`, {
         username,
         email,
         password
       });
 
       if (response.data.success) {
-        router.replace('/screens/LoginScreen'); // Navigate to login screen after successful registration
+        console.log("✅ Registration successful. Redirecting...");
+        router.replace('/screens/LoginScreen');
       } else {
+        console.log("⚠️ Server responded:", response.data);
         setErrorMessage(response.data.message || 'Registration failed');
       }
     } catch (error) {
+      console.error("❌ Registration error:", error.message);
       setErrorMessage(error.response?.data?.message || error.message);
     }
   };
@@ -75,7 +84,7 @@ export default function RegisterScreen() {
 
       <Text
         style={styles.loginLink}
-        onPress={() => router.replace('/screens/LoginScreen')} // Replace navigation.navigate
+        onPress={() => router.replace('/screens/LoginScreen')}
       >
         Already have an account? Login
       </Text>

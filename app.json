@@ -37,15 +37,13 @@
     },
     "extra": {
       "LOCAL_API_URL": "http://10.0.0.167:5000", 
-      "PROD_API_URL": "https://igotit-t2uz.onrender.com",
+      "PROD_API_URL": "https://cartracker-t4bc.onrender.com",
       "eas": {
         "projectId": "bda6dd3b-e7d1-4856-a334-5b8ca5016c99"
       }
     },
     "owner": "jaytranberg",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+   "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/bda6dd3b-e7d1-4856-a334-5b8ca5016c99"
     }
