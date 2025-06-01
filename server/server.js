@@ -49,10 +49,13 @@ app.post("/create-checkout-session", async (req, res) => {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       payment_method_types: ["card"],
-      customer_email: email, // ✅ Use Stripe-native email handling
+      customer_email: email,
+      metadata: {
+        email: email // ✅ This allows webhook to match user
+      },
       line_items: [
         {
-          price: "price_1RV3x300utQSZbpF7lQyv2Fl", // Your $5/month plan
+          price: "price_1RV3x300utQSZbpF7lQyv2Fl",
           quantity: 1,
         },
       ],
@@ -66,6 +69,7 @@ app.post("/create-checkout-session", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
   const sig = req.headers["stripe-signature"];
@@ -81,7 +85,6 @@ app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
   if (event.type === "checkout.session.completed") {
     const email = event.data.object.metadata.email;
 
-    // Update user's plan
     User.findOneAndUpdate({ email }, { plan: "pro" }, { new: true })
       .then(() => console.log(`✅ Upgraded ${email} to PRO`))
       .catch((err) => console.error("Mongo update error:", err));
@@ -89,6 +92,9 @@ app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
 
   res.json({ received: true });
 });
+
+
+
 
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;

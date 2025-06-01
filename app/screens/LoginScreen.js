@@ -35,12 +35,15 @@ export default function LoginScreen() {
     console.log("✅ Server response:", response.data);
 
     if (response.data.success && response.data.token) {
-      // Save token, username, and plan to AsyncStorage
+      const userPlan = response.data.plan || "free";
+
+      // Save to AsyncStorage
       await AsyncStorage.setItem("userToken", response.data.token);
       await AsyncStorage.setItem("username", response.data.username || "Unknown");
-      await AsyncStorage.setItem("plan", response.data.plan || "free");
+      await AsyncStorage.setItem("plan", userPlan);
 
-      console.log("🔑 Token, Username & Plan saved, redirecting to Home...");
+      console.log(`🔐 Logged in as ${response.data.username}, plan: ${userPlan}`);
+
       router.replace("/screens/HomeScreen");
     } else {
       setErrorMessage(response.data.message || "Login failed");
@@ -56,6 +59,7 @@ export default function LoginScreen() {
     console.log("❌ Response Headers:", error.response?.headers);
   }
 };
+
 
 
   return (
