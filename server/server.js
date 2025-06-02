@@ -46,22 +46,29 @@ app.post("/create-checkout-session", async (req, res) => {
   try {
     const { email } = req.body;
 
+    // ✅ Check if user is already Pro
+    const user = await User.findOne({ email });
+    if (user && user.plan === "pro") {
+      return res.json({ alreadyPaid: true });
+    }
+
+    // ✅ Otherwise, create a new checkout session
     const session = await stripe.checkout.sessions.create({
-  mode: "subscription",
-  payment_method_types: ["card"],
-  customer_email: email,
-  metadata: {
-    email: email
-  },
-  line_items: [
-    {
-      price: "price_1RV3x300utQSZbpF7lQyv2Fl",
-      quantity: 1,
-    },
-  ],
-  success_url: "https://theinandoutapp.com/?success=true", // ✅ updated
-  cancel_url: "https://theinandoutapp.com/cancel",
-});
+      mode: "subscription",
+      payment_method_types: ["card"],
+      customer_email: email,
+      metadata: {
+        email: email,
+      },
+      line_items: [
+        {
+          price: "price_1RV3x300utQSZbpF7lQyv2Fl",
+          quantity: 1,
+        },
+      ],
+      success_url: "https://theinandoutapp.com/?success=true",
+      cancel_url: "https://theinandoutapp.com/cancel",
+    });
 
     res.json({ url: session.url });
   } catch (err) {

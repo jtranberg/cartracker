@@ -51,32 +51,37 @@ useEffect(() => {
 }, []);
 
 
-  const handleUpgrade = async () => {
-    if (!emailForCheckout) {
-      Alert.alert("Missing Email", "Please enter your email to continue.");
+ const handleUpgrade = async () => {
+  if (!emailForCheckout) {
+    Alert.alert("Missing Email", "Please enter your email to continue.");
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/create-checkout-session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: emailForCheckout }),
+    });
+
+    const data = await response.json();
+
+    if (data.alreadyPaid) {
+      Alert.alert("✅ Already Subscribed", "You've already unlocked Pro features!");
       return;
     }
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/create-checkout-session`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: emailForCheckout }),
-      });
-
-      const data = await response.json();
-      if (data.url) {
-        Linking.openURL(data.url);
-      } else {
-        Alert.alert("Error", "Unable to initiate checkout.");
-      }
-    } catch (err) {
-      console.error("Checkout Error:", err);
-      Alert.alert("Error", "Something went wrong while starting checkout.");
+    if (data.url) {
+      Linking.openURL(data.url);
+    } else {
+      Alert.alert("Error", "Unable to initiate checkout.");
     }
-  };
+  } catch (err) {
+    console.error("Checkout Error:", err);
+    Alert.alert("Error", "Something went wrong while starting checkout.");
+  }
+};
 
-  if (!isLoggedIn) return null;
 
   return (
     <ImageBackground
