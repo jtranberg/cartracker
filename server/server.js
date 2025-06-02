@@ -92,13 +92,18 @@ app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
   if (event.type === "checkout.session.completed") {
     const email = event.data.object.metadata.email;
 
-    User.findOneAndUpdate({ email }, { plan: "pro" }, { new: true })
-      .then(() => console.log(`✅ Upgraded ${email} to PRO`))
-      .catch((err) => console.error("Mongo update error:", err));
+    User.findOneAndUpdate(
+      { email },
+      { $set: { plan: "pro" } }, // ✅ This ensures Mongo creates or updates the field
+      { new: true }
+    )
+    .then(() => console.log(`✅ Upgraded ${email} to PRO`))
+    .catch((err) => console.error("Mongo update error:", err));
   }
 
   res.json({ received: true });
 });
+
 
 
 

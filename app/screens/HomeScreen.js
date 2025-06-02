@@ -25,63 +25,66 @@ export default function HomeScreen() {
   const [plan, setPlan] = useState(null);
   const [emailForCheckout, setEmailForCheckout] = useState("");
 
-useEffect(() => {
-  const checkAuthStatus = async () => {
-    const token = await AsyncStorage.getItem("userToken");
-    const storedPlan = await AsyncStorage.getItem("plan");
-    const savedEmail = await AsyncStorage.getItem("pendingEmail");
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      const token = await AsyncStorage.getItem("userToken");
+      const storedPlan = await AsyncStorage.getItem("plan");
+      const savedEmail = await AsyncStorage.getItem("pendingEmail");
 
-    if (!token) {
-      router.replace("/screens/LoginScreen");
-    } else {
-      setIsLoggedIn(true);
-      setPlan(storedPlan || "free");
+      if (!token) {
+        router.replace("/screens/LoginScreen");
+      } else {
+        setIsLoggedIn(true);
+        setPlan(storedPlan || "free");
 
-      // Pre-fill email if pending from Stripe
-      if (savedEmail) {
-        setEmailForCheckout(savedEmail);
-        if (storedPlan === "pro") {
-          await AsyncStorage.removeItem("pendingEmail"); // ✅ clear if upgraded
+        if (savedEmail) {
+          setEmailForCheckout(savedEmail);
+          if (storedPlan === "pro") {
+            await AsyncStorage.removeItem("pendingEmail");
+          }
         }
       }
-    }
-  };
+    };
 
-  checkAuthStatus();
-}, []);
+    checkAuthStatus();
+  }, []);
 
-
- const handleUpgrade = async () => {
-  if (!emailForCheckout) {
-    Alert.alert("Missing Email", "Please enter your email to continue.");
-    return;
-  }
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/create-checkout-session`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: emailForCheckout }),
-    });
-
-    const data = await response.json();
-
-    if (data.alreadyPaid) {
-      Alert.alert("✅ Already Subscribed", "You've already unlocked Pro features!");
+  const handleUpgrade = async () => {
+    if (!emailForCheckout) {
+      Alert.alert("Missing Email", "Please enter your email to continue.");
       return;
     }
 
-    if (data.url) {
-      Linking.openURL(data.url);
-    } else {
-      Alert.alert("Error", "Unable to initiate checkout.");
-    }
-  } catch (err) {
-    console.error("Checkout Error:", err);
-    Alert.alert("Error", "Something went wrong while starting checkout.");
-  }
-};
+    try {
+      const response = await fetch(`${API_BASE_URL}/create-checkout-session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailForCheckout }),
+      });
 
+      const data = await response.json();
+
+      if (data.alreadyPaid) {
+        Alert.alert("✅ Already Subscribed", "You've already unlocked Pro features!");
+        await AsyncStorage.setItem("plan", "pro");
+        await AsyncStorage.removeItem("pendingEmail");
+        setPlan("pro");
+        return;
+      }
+
+      if (data.url) {
+        await AsyncStorage.setItem("pendingEmail", emailForCheckout);
+        Linking.openURL(data.url);
+      } else {
+        Alert.alert("Error", "Unable to initiate checkout.");
+      }
+    } catch (err) {
+      console.error("Checkout Error:", err);
+      Alert.alert("Error", "Something went wrong while starting checkout.");
+    }
+  };
+
+  if (!isLoggedIn) return null;
 
   return (
     <ImageBackground
