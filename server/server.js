@@ -78,31 +78,76 @@ app.post("/create-checkout-session", async (req, res) => {
 });
 
 
-app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
+app.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
   const sig = req.headers["stripe-signature"];
 
   let event;
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
   } catch (err) {
-    console.error("Webhook signature error:", err);
+    console.error("❌ Webhook signature error:", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  if (event.type === "checkout.session.completed") {
-    const email = event.data.object.metadata.email;
+  const eventType = event.type;
+  console.log(`📡 Stripe webhook received: ${eventType}`);
 
-    User.findOneAndUpdate(
-      { email },
-      { $set: { plan: "pro" } }, // ✅ This ensures Mongo creates or updates the field
-      { new: true }
-    )
-    .then(() => console.log(`✅ Upgraded ${email} to PRO`))
-    .catch((err) => console.error("Mongo update error:", err));
+  try {
+    switch (eventType) {
+      case "checkout.session.completed": {
+        const email = event.data.object.metadata.email;
+        if (!email) return;
+
+        await User.findOneAndUpdate(
+          { email },
+          { $set: { plan: "pro" } },
+          { new: true }
+        );
+        console.log(`✅ Upgraded ${email} to PRO`);
+        break;
+      }
+
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object;
+        const customerId = subscription.customer;
+
+        // Get customer email via Stripe API
+        const customer = await stripe.customers.retrieve(customerId);
+        const email = customer.email;
+
+        if (email) {
+          await User.findOneAndUpdate(
+            { email },
+            { $set: { plan: "free" } },
+            { new: true }
+          );
+          console.log(`🔻 Downgraded ${email} to FREE (subscription ended)`);
+        }
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        const customerId = event.data.object.customer;
+
+        const customer = await stripe.customers.retrieve(customerId);
+        const email = customer.email;
+
+        console.warn(`⚠️ Payment failed for ${email}`);
+        // Optionally notify user or downgrade
+        break;
+      }
+
+      default:
+        console.log(`ℹ️ Unhandled event type: ${eventType}`);
+    }
+
+    res.json({ received: true });
+  } catch (error) {
+    console.error("❌ Webhook processing error:", error.message);
+    res.status(500).send("Internal server error in webhook");
   }
-
-  res.json({ received: true });
 });
+
 
 
 
