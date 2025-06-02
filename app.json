@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "The In and Out App!",
-    "slug": "igotit",
+    "slug": "the-in-and-out-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -14,14 +14,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.jaytranberg.igotit"
+      "bundleIdentifier": "com.jaytranberg.inandout"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.jaytranberg.igotit"
+      "package": "com.jaytranberg.inandout"
     },
     "web": {
       "bundler": "metro",
@@ -36,14 +36,14 @@
       "typedRoutes": true
     },
     "extra": {
-      "LOCAL_API_URL": "http://10.0.0.167:5000", 
+      "LOCAL_API_URL": "http://10.0.0.167:5000",
       "PROD_API_URL": "https://cartracker-t4bc.onrender.com",
       "eas": {
         "projectId": "bda6dd3b-e7d1-4856-a334-5b8ca5016c99"
       }
     },
     "owner": "jaytranberg",
-   "runtimeVersion": "1.0.0",
+    "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/bda6dd3b-e7d1-4856-a334-5b8ca5016c99"
     }

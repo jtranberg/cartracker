@@ -113,46 +113,46 @@ app.post("/login", async (req, res) => {
   console.log("Received login request:", { email, password });
 
   try {
-    const user = await User.findOne({ email });
+    let user = await User.findOne({ email });
     if (!user) {
       console.log("User not found with email:", email);
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid credentials" });
+      return res.status(400).json({ success: false, message: "Invalid credentials" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       console.log("Password does not match for user:", email);
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid credentials" });
+      return res.status(400).json({ success: false, message: "Invalid credentials" });
     }
 
     console.log("Password matched successfully");
 
-    // ✅ Step 3: Generate JWT Token
+    // 🔁 Re-fetch user after compare to get updated `plan`
+    user = await User.findOne({ email });
+    console.log("🟢 User plan at login:", user.plan); // Add this
+
     const token = jwt.sign(
       { userId: user._id, email: user.email },
-      process.env.JWT_SECRET, // Ensure this is in your .env file
-      { expiresIn: "24h" } // Token expires in 24 hours
+      process.env.JWT_SECRET,
+      { expiresIn: "24h" }
     );
 
     console.log("✅ Token generated:", token);
+    console.log("🟢 User plan at login:", user.plan);
 
-    // ✅ Step 4: Return success response with token
     res.status(200).json({
       success: true,
       message: "Login successful",
       token,
       username: user.username,
-      plan: user.plan || "free", // ✅ Send the plan here
+      plan: user.plan || "free", // Should now be accurate
     });
   } catch (error) {
     console.error("Server error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
 
 // Register Route
 app.post("/register", async (req, res) => {
