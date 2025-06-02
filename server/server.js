@@ -47,21 +47,21 @@ app.post("/create-checkout-session", async (req, res) => {
     const { email } = req.body;
 
     const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      payment_method_types: ["card"],
-      customer_email: email,
-      metadata: {
-        email: email // ✅ This allows webhook to match user
-      },
-      line_items: [
-        {
-          price: "price_1RV3x300utQSZbpF7lQyv2Fl",
-          quantity: 1,
-        },
-      ],
-      success_url: "https://theinandoutapp.com/success",
-      cancel_url: "https://theinandoutapp.com/cancel",
-    });
+  mode: "subscription",
+  payment_method_types: ["card"],
+  customer_email: email,
+  metadata: {
+    email: email
+  },
+  line_items: [
+    {
+      price: "price_1RV3x300utQSZbpF7lQyv2Fl",
+      quantity: 1,
+    },
+  ],
+  success_url: "https://theinandoutapp.com/?success=true", // ✅ updated
+  cancel_url: "https://theinandoutapp.com/cancel",
+});
 
     res.json({ url: session.url });
   } catch (err) {
