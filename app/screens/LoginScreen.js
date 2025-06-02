@@ -24,7 +24,6 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  // ✅ Auto-fill email if saved from Stripe flow
   useEffect(() => {
     const prefillEmail = async () => {
       const savedEmail = await AsyncStorage.getItem("pendingEmail");
@@ -56,13 +55,9 @@ export default function LoginScreen() {
       if (response.data.success && response.data.token) {
         const userPlan = response.data.plan || "free";
 
-        // Save to AsyncStorage
         await AsyncStorage.setItem("userToken", response.data.token);
-        await AsyncStorage.setItem(
-          "username",
-          response.data.username || "Unknown"
-        );
-        await AsyncStorage.setItem("plan", userPlan);
+        await AsyncStorage.setItem("username", response.data.username || "Unknown");
+        await AsyncStorage.setItem("plan", userPlan); // ✅ This line ensures HomeScreen sees correct plan
 
         console.log(`🔐 Logged in as ${response.data.username}, plan: ${userPlan}`);
         router.replace("/screens/HomeScreen");
